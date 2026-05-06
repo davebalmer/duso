@@ -103,7 +103,7 @@ function create_client(endpoint, models_endpoint, options)
         var func = tool_call["function"]
         var handler = session.config.tool_handlers[func.name]
         var result = nil
-        var error = false
+        var err = false
 
         if handler then
           try
@@ -111,11 +111,11 @@ function create_client(endpoint, models_endpoint, options)
             result = handler(args)
           catch (e)
             result = "Error executing tool: " + format(e)
-            error = true
+            err = true
           end
         else
           result = "Tool handler not found: " + func.name
-          error = true
+          err = true
         end
 
         push(session.messages, {

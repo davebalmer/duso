@@ -78,7 +78,7 @@ def_comment = combine(fg="gray")
 def_link = combine(fg="blue", underline=true)
 
 // Semantic style functions
-function error(text)
+function err_style(text)
   return def_error + text + clear
 end
 
@@ -125,7 +125,7 @@ end
 return {
   combine = combine,
   clear = clear,
-  error = error,
+  error = err_style,
   warning = warning,
   title = title,
   code = code_style,

@@ -192,25 +192,25 @@ function execute_tools_loop(session, response, max_iterations)
     for tool_use in tool_uses do
       var handler = session.config.tool_handlers[tool_use.name]
       var result = nil
-      var error = false
+      var err = false
 
       if handler then
         try
           result = handler(tool_use.input)
         catch (e)
           result = "Error executing tool: " + format(e)
-          error = true
+          err = true
         end
       else
         result = "Tool handler not found: " + tool_use.name
-        error = true
+        err = true
       end
 
       push(tool_results, {
         type = "tool_result",
         tool_use_id = tool_use.id,
         content = tostring(result),
-        is_error = error
+        is_error = err
       })
     end
 

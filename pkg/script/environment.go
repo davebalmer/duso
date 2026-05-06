@@ -128,6 +128,11 @@ func (e *Environment) Define(name string, value Value) {
 
 // Get retrieves a variable, walking up the parent chain if necessary
 func (e *Environment) Get(name string) (Value, error) {
+	// Check if accessing "self" directly
+	if name == "self" && !e.self.IsNil() {
+		return e.self, nil
+	}
+
 	// e.mu.RLock()
 	val, ok := e.variables[name]
 	// e.mu.RUnlock()

@@ -120,6 +120,8 @@ skills = ["Go", "Rust", "Python"]
 config = {timeout = 30, retries = 3}
 ```
 
+**Note on Variable Names:** Variable names cannot be keywords or builtin function names. See [Reserved Words](#reserved-words) for the complete list and restrictions.
+
 Duso supports these types:
 
 - **[Number](/docs/reference/number.md)** - Floating point (used for arithmetic and counting)
@@ -317,6 +319,8 @@ for i = 1, 10 do
 end
 ```
 
+**Note on Loop Variables:** Loop variable names (like `i` or `item`) cannot be keywords or builtins. See [Reserved Words](#reserved-words) for details.
+
 See [`for`](/docs/reference/for.md) and [`while`](/docs/reference/while.md) for loop details.
 
 ## Working with Data
@@ -453,6 +457,8 @@ print(agent.greet("Hello"))
 agent.birthday()
 print(agent.greet("Hello"))
 ```
+
+**Accessing Properties by Name:** If an object property happens to have the same name as a builtin (common when parsing JSON), access it via the `self` variable inside methods. See [Reserved Words](#reserved-words) for details and examples.
 
 Methods can also call other methods on the same object:
 
@@ -686,6 +692,8 @@ end
 // 10
 print(double(5))
 ```
+
+**Note on Function Names:** Function names and parameters cannot be keywords or builtins. See [Reserved Words](#reserved-words) for the complete list.
 
 ### Parameters and Arguments
 
@@ -1029,6 +1037,8 @@ end
 
 The error message is captured as a string and you can handle it however you need.
 
+**Note on Catch Variables:** The variable that captures the error cannot be a keyword or builtin name. See [Reserved Words](#reserved-words) for restrictions.
+
 ### Throwing Errors
 
 Use [`throw()`](/docs/reference/throw.md) to raise an error from your code. `throw()` accepts any data type—strings, objects, arrays—allowing you to create rich, app-specific error responses:
@@ -1153,6 +1163,78 @@ print(x)
 ```
 
 Function parameters and loop variables are automatically local.
+
+## Reserved Words
+
+Duso protects keywords and builtin function names from being shadowed to prevent accidental loss of language features. You cannot use reserved words as:
+- Variable names (in `var` declarations or assignments)
+- Function names
+- Function parameters
+- Loop variables
+- Catch variables
+
+This applies everywhere in your code, regardless of scope.
+
+### What's Reserved?
+
+**Keywords:** Control flow and language syntax
+```
+if, then, else, elseif, end, while, do, for, in, function, return, break, continue, try, catch, and, or, not, var, raw, true, false, nil, self
+```
+
+**Builtins:** Functions you can call without defining
+```
+print, input, env, deep_copy, parse_json, format_json, encode_base64, decode_base64, hash, hash_password, verify_password, sign_rsa, verify_rsa, rsa_from_jwk, sign_ec, verify_ec, ec_from_jwk, upper, lower, repeat, substr, trim, floor, ceil, round, abs, min, max, sqrt, pow, clamp, sin, cos, tan, asin, acos, atan, atan2, exp, log, ln, pi, random, now, timestamp, timer, format_time, parse_time, len, type, tonumber, tostring, tobool, parse, keys, values, push, pop, shift, unshift, split, join, range, map, filter, reduce, sort, contains, starts_with, ends_with, find, replace, template, markdown_html, markdown_ansi, markdown_text, exit, sleep, uuid, fetch, datastore, sql, throw, assert, breakpoint, watch, spawn, run, kill, context, http_server, parallel
+```
+
+### Examples of What's Forbidden
+
+```duso
+// Variables
+var print = 5  // Error: 'print' is reserved
+
+// Functions
+function len() end  // Error: 'len' is reserved
+
+// Parameters
+function calculate(type)  // Error: 'type' is reserved
+  return type + 1
+end
+
+// Loop variables
+for now in [1, 2, 3] do  // Error: 'now' is reserved
+  print(now)
+end
+
+// Catch variables
+try
+  risky_operation()
+catch (type)  // Error: 'type' is reserved
+  print(type)
+end
+```
+
+### The Exception: Object Properties with `self`
+
+Object properties **can** be named with reserved words (essential for JSON interop), but you access them via the `self` variable inside methods:
+
+```duso
+data = {
+  now = 12345,
+  type = "timestamp",
+  
+  describe = function()
+    // Access properties via self, not directly
+    return "Time: " + self.now + ", Type: " + self.type
+  end
+}
+
+print(data.describe())
+// Builtins still work normally
+print("Current: " + now())
+```
+
+The `self` variable is only available inside object methods and refers to the object the method belongs to. Like other reserved words, `self` cannot be used as a variable name elsewhere.
 
 ## Modules and Organization
 

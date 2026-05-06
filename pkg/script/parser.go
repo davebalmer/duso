@@ -214,6 +214,12 @@ func (p *Parser) parseStatement() (Node, error) {
 
 		// Check if it's an assignment
 		if p.current().Type == TOK_ASSIGN {
+			// Validate that simple identifier targets aren't reserved names
+			if id, ok := expr.(*Identifier); ok {
+				if IsReservedName(id.Name) {
+					return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be assigned to", id.Name), id.Pos)
+				}
+			}
 			p.advance()
 			value, err := p.parseExpression()
 			if err != nil {
@@ -224,6 +230,12 @@ func (p *Parser) parseStatement() (Node, error) {
 
 		// Check for compound assignment operators
 		if p.isCompoundAssign(p.current().Type) {
+			// Validate that simple identifier targets aren't reserved names
+			if id, ok := expr.(*Identifier); ok {
+				if IsReservedName(id.Name) {
+					return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be assigned to", id.Name), id.Pos)
+				}
+			}
 			op := p.current().Type
 			p.advance()
 			value, err := p.parseExpression()
@@ -235,6 +247,12 @@ func (p *Parser) parseStatement() (Node, error) {
 
 		// Check for post-increment/decrement
 		if p.current().Type == TOK_INCREMENT || p.current().Type == TOK_DECREMENT {
+			// Validate that simple identifier targets aren't reserved names
+			if id, ok := expr.(*Identifier); ok {
+				if IsReservedName(id.Name) {
+					return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be assigned to", id.Name), id.Pos)
+				}
+			}
 			op := p.current().Type
 			p.advance()
 			return &PostIncrementStatement{Pos: exprPos, Target: expr, Operator: op}, nil
@@ -344,6 +362,13 @@ func (p *Parser) parseForStatement() (*ForStatement, error) {
 	}
 
 	varName := p.current().Value
+	varPos := Position{Line: p.current().Line, Column: p.current().Column}
+
+	// Check if loop variable name conflicts with keywords or builtins
+	if IsReservedName(varName) {
+		return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be used as a loop variable name", varName), varPos)
+	}
+
 	if err := p.expect(TOK_IDENT); err != nil {
 		return nil, err
 	}
@@ -419,6 +444,13 @@ func (p *Parser) parseParameters() ([]*Parameter, error) {
 	var params []*Parameter
 	for p.current().Type == TOK_IDENT {
 		paramName := p.current().Value
+		paramPos := Position{Line: p.current().Line, Column: p.current().Column}
+
+		// Check if parameter name conflicts with keywords or builtins
+		if IsReservedName(paramName) {
+			return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be used as a parameter name", paramName), paramPos)
+		}
+
 		p.advance()
 
 		var defaultExpr Node = nil
@@ -449,6 +481,13 @@ func (p *Parser) parseFunctionDef() (*FunctionDef, error) {
 	p.advance() // skip "function"
 
 	name := p.current().Value
+	namePos := Position{Line: p.current().Line, Column: p.current().Column}
+
+	// Check if function name conflicts with keywords or builtins
+	if IsReservedName(name) {
+		return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be used as a function name", name), namePos)
+	}
+
 	if err := p.expect(TOK_IDENT); err != nil {
 		return nil, err
 	}
@@ -517,6 +556,13 @@ func (p *Parser) parseTryStatement() (*TryStatement, error) {
 	}
 
 	catchVar := p.current().Value
+	catchVarPos := Position{Line: p.current().Line, Column: p.current().Column}
+
+	// Check if catch variable name conflicts with keywords or builtins
+	if IsReservedName(catchVar) {
+		return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be used as a catch variable name", catchVar), catchVarPos)
+	}
+
 	if err := p.expect(TOK_IDENT); err != nil {
 		return nil, err
 	}
@@ -569,6 +615,12 @@ func (p *Parser) parseVarDeclaration() (*AssignStatement, error) {
 	}
 	name := p.current().Value
 	identPos := Position{Line: p.current().Line, Column: p.current().Column}
+
+	// Check if name conflicts with keywords or builtins
+	if IsReservedName(name) {
+		return nil, p.parseError(fmt.Sprintf("'%s' is a reserved keyword or builtin and cannot be used as a variable name", name), identPos)
+	}
+
 	p.advance()
 
 	// Expect assignment

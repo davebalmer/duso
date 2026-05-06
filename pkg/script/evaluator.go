@@ -247,15 +247,15 @@ func (e *Evaluator) Eval(node Node) (Value, error) {
 	case *PropertyAccess:
 		return e.evalPropertyAccess(n)
 	case *Identifier:
-		// Check environment first (user-defined variables and functions)
+		// Check builtin registry first to prevent object properties from shadowing builtins
+		if builtin, exists := e.builtins[n.Name]; exists {
+			return NewGoFunction(builtin), nil
+		}
+
+		// Check environment second (user-defined variables and functions)
 		val, err := e.env.Get(n.Name)
 		if err == nil {
 			return val, nil
-		}
-
-		// Check builtin registry
-		if builtin, exists := e.builtins[n.Name]; exists {
-			return NewGoFunction(builtin), nil
 		}
 
 		// Not found

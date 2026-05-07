@@ -41,6 +41,12 @@ if config then
 end
 ```
 
+Pass configuration via CLI:
+
+```bash
+duso -config 'port=8080, timeout=30' script.du
+```
+
 Check multiple CLI options:
 
 ```duso

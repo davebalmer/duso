@@ -1230,7 +1230,7 @@ func main() {
 				os.Exit(1)
 			}
 			if config != nil {
-				sysDs.Set("config", config)
+				sysDs.Set("-config", config)
 			}
 		}
 		runREPL()
@@ -1284,7 +1284,7 @@ func main() {
 				os.Exit(1)
 			}
 			if config != nil {
-				sysDs.Set("config", config)
+				sysDs.Set("-config", config)
 			}
 		}
 		// Set doc_topic separately, so it doesn't interfere with user's config

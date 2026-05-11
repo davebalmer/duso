@@ -389,12 +389,31 @@ func builtinHTTPServer(evaluator *Evaluator, args map[string]any) (any, error) {
 			return nil, fmt.Errorf("static() requires path and directory arguments")
 		}
 
-		// Resolve relative paths to absolute paths using current working directory
-		// This ensures "." refers to the cwd where duso was invoked, not the script directory
-		absDir, err := core.Abs(dir)
-		if err != nil {
-			// If resolution fails, use the original path
+		// Get script directory from request context for path resolution
+		scriptDir := ""
+		gid := script.GetGoroutineID()
+		if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
+			scriptDir = core.Dir(ctx.Frame.Filename)
+		}
+
+		// For absolute/virtual paths, use as-is
+		var absDir string
+		if core.IsAbsolute(dir) || strings.HasPrefix(dir, "/") {
 			absDir = dir
+		} else {
+			// For relative paths, try candidates in order: scriptDir, then cwd
+			candidates := []string{
+				core.Join(scriptDir, dir),
+				core.Join(".", dir),
+			}
+			absDir = dir // default fallback
+			for _, candidate := range candidates {
+				resolved, err := core.Abs(candidate)
+				if err == nil {
+					absDir = resolved
+					break
+				}
+			}
 		}
 
 		// Register the static route

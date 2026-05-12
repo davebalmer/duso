@@ -54,8 +54,9 @@ Datastore object with methods
 - `save()` - Explicitly save to disk (requires persist configured)
 - `load()` - Explicitly load from disk (requires persist configured)
 
-### Inspection
+### Query & Inspection
 - `keys()` - Get array of all keys in the store
+- `select(predicate)` - Query datastore by running a predicate function on each key-value pair. Predicate receives (key, value) and returns a value to include in results, or nil to exclude. Results are deep-copied
 
 ## Context
 
@@ -399,6 +400,62 @@ store.update("app_config", {
 ```
 
 No read-modify-write race conditions—entire operation is atomic with one lock.
+
+### Query with Select
+
+Filter and transform datastore entries using a predicate function:
+
+```duso
+store = datastore("workers")
+store.set("alice", {status = "done", count = 5})
+store.set("bob", {status = "pending", count = 3})
+store.set("charlie", {status = "done", count = 8})
+
+// Get counts of completed workers
+results = store.select(function(key, value)
+  if value.status == "done" then
+    return value.count
+  end
+end)
+print(results)  // [5, 8]
+```
+
+The predicate receives (key, value) and returns:
+- A value to include in results
+- nil (or no return) to exclude
+
+Transform results:
+
+```duso
+results = store.select(function(key, value)
+  if value.count > 4 then
+    return {name = key, doubled = value.count * 2}
+  end
+end)
+print(results)  // [{name="alice", doubled=10}, {name="charlie", doubled=16}]
+```
+
+Filter by key patterns:
+
+```duso
+results = store.select(function(key, value)
+  if string.startswith(key, "user_") and value.active then
+    return value
+  end
+end)
+```
+
+Select locks briefly per-key during iteration (efficient for large stores). Throws error if predicate fails—catch with try/catch:
+
+```duso
+try
+  results = store.select(function(key, value)
+    return value.score + 10  // might error
+  end)
+catch (e)
+  print("Query failed: " + e)
+end
+```
 
 ## Atomicity
 

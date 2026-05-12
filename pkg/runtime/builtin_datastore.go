@@ -27,6 +27,7 @@ import (
 //   - .exists(key) - Check if key exists
 //   - .rename(oldKey, newKey) - Atomically rename key
 //   - .expire(key, ttlSeconds) - Set time-to-live for a key
+//   - .select(predicate) - Query datastore with a filtering function, returns array of results
 //   - .save() - Explicitly save to disk (if configured)
 //   - .load() - Explicitly load from disk (if configured)
 //   - .keys() - Get array of all keys in the store
@@ -451,6 +452,23 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			return nil, store.Expire(key, ttlSeconds)
 		})
 
+		// Create select(predicate) method - query with a filtering function
+		selectFn := NewGoFunction(func(selectEval *Evaluator, selectArgs map[string]any) (any, error) {
+			predicateFn, ok := selectArgs["0"]
+			if !ok {
+				return nil, fmt.Errorf("select() requires a predicate function argument")
+			}
+			predicateVal := InterfaceToValue(predicateFn)
+			if !predicateVal.IsFunction() {
+				return nil, fmt.Errorf("select() predicate must be a function")
+			}
+			results, err := store.Select(selectEval, predicateVal)
+			if err != nil {
+				return nil, err
+			}
+			return results, nil
+		})
+
 		// Return store object with methods
 		return map[string]any{
 			"set":       setFn,
@@ -472,6 +490,7 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			"exists":    existsFn,
 			"rename":    renameFn,
 			"expire":    expireFn,
+			"select":    selectFn,
 			"save":      saveFn,
 			"load":      loadFn,
 			"keys":      NewGoFunction(func(keysEval *Evaluator, keysArgs map[string]any) (any, error) { keys := store.Keys(); result := make([]any, len(keys)); for i, key := range keys { result[i] = key }; return result, nil }),

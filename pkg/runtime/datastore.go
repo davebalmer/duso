@@ -1063,6 +1063,54 @@ func (ds *DatastoreValue) Keys() []string {
 	return keys
 }
 
+// Select queries the datastore by running a predicate function on each key-value pair.
+// The predicate receives (key, value) and returns:
+// - nil to exclude this entry
+// - any non-nil value to include it in the results
+// Results are deep-copied to isolate from datastore mutations.
+// Snapshot keys at start, then lock per-key during iteration for minimal blocking.
+// Returns error if the predicate throws.
+func (ds *DatastoreValue) Select(evaluator *Evaluator, predicateFn Value) ([]any, error) {
+	// Snapshot keys (lightweight)
+	ds.dataMutex.RLock()
+	keys := make([]string, 0, len(ds.data))
+	for k := range ds.data {
+		keys = append(keys, k)
+	}
+	ds.dataMutex.RUnlock()
+
+	// Iterate keys with per-key locking
+	results := make([]any, 0)
+	for _, key := range keys {
+		// Lock only to read and copy this value
+		ds.dataMutex.Lock()
+		val, exists := ds.data[key]
+		if !exists {
+			ds.dataMutex.Unlock()
+			continue // key was deleted
+		}
+		valCopy := DeepCopyAny(val)
+		ds.dataMutex.Unlock()
+
+		// Call predicate (unlocked)
+		fnArgs := map[string]Value{
+			"0": NewString(key),
+			"1": InterfaceToValue(valCopy),
+		}
+		result, err := evaluator.CallFunction(predicateFn, fnArgs)
+		if err != nil {
+			return nil, fmt.Errorf("select() predicate error on key %q: %v", key, err)
+		}
+
+		// If result is not nil, include it
+		if result.Data != nil {
+			results = append(results, DeepCopyAny(ValueToInterface(result)))
+		}
+	}
+
+	return results, nil
+}
+
 // Shutdown stops the auto-save ticker and expiry ticker, and saves final state
 func (ds *DatastoreValue) Shutdown() error {
 	if ds.ticker != nil {

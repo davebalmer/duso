@@ -17,6 +17,13 @@ var (
 	registryMutex     sync.RWMutex
 )
 
+// Register gob types once at init
+func init() {
+	gob.Register(WALEntry{})
+	gob.Register([]any{})
+	gob.Register(map[string]any{})
+}
+
 // WALEntry represents a key-value write in the Write-Ahead Log
 type WALEntry struct {
 	Key   string
@@ -139,14 +146,23 @@ func GetDatastore(namespace string, config map[string]any) *DatastoreValue {
 		}
 	}
 
-	// Initialize WAL if configured
-	if store.walPath != "" {
-		_ = store.initWAL() // Ignore errors during init, will log on first write
-	}
-
-	// Auto-load from disk if file exists
+	// Step 1: Load persist if it exists
 	if store.persistPath != "" {
 		_ = store.loadFromDisk() // Ignore error if file doesn't exist yet
+	}
+
+	// Step 2: Replay WAL if it exists, then save merged state and truncate
+	if store.walPath != "" {
+		if err := store.recoverFromWAL(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to recover from WAL for %q: %v\n", store.namespace, err)
+		}
+	}
+
+	// Step 3: Open WAL for new writes if configured (only if recovery didn't already do it)
+	if store.walPath != "" && store.walFile == nil {
+		if err := store.openWALForWrites(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to open WAL for writes for %q: %v\n", store.namespace, err)
+		}
 	}
 
 	// Start auto-save ticker if configured
@@ -1161,10 +1177,6 @@ func (ds *DatastoreValue) saveToDisk() error {
 	ds.dataMutex.RLock()
 	defer ds.dataMutex.RUnlock()
 
-	// Register gob types for encoding
-	gob.Register([]any{})
-	gob.Register(map[string]any{})
-
 	// Create parent directory if needed
 	persistDir := core.Dir(ds.persistPath)
 	if persistDir != "" && persistDir != "." {
@@ -1224,10 +1236,6 @@ func (ds *DatastoreValue) loadFromDisk() error {
 	ds.dataMutex.Lock()
 	defer ds.dataMutex.Unlock()
 
-	// Register gob types for decoding
-	gob.Register([]any{})
-	gob.Register(map[string]any{})
-
 	// Decode from gob
 	decoder := gob.NewDecoder(file)
 	if err := decoder.Decode(&ds.data); err != nil {
@@ -1237,40 +1245,50 @@ func (ds *DatastoreValue) loadFromDisk() error {
 	return nil
 }
 
-// initWAL opens or creates the WAL file and sets up the encoder
-// Also replays the WAL if the snapshot is older or doesn't exist
-func (ds *DatastoreValue) initWAL() error {
+// recoverFromWAL replays WAL entries, saves merged state, and truncates WAL
+func (ds *DatastoreValue) recoverFromWAL() error {
 	if ds.walPath == "" {
 		return nil
 	}
 
 	ds.walMutex.Lock()
+	defer ds.walMutex.Unlock()
 
-	// Register gob types for encoding/decoding
-	gob.Register([]any{})
-	gob.Register(map[string]any{})
-
-	// Recover from snapshot + WAL if snapshot exists
-	if ds.persistPath != "" {
-		// Load snapshot first (if it exists)
-		_ = ds.loadFromDisk()
-	}
-
-	// Replay WAL entries on top of snapshot
+	// Replay WAL entries on top of loaded snapshot
+	fmt.Fprintf(os.Stderr, "DEBUG: replaying WAL for %q (path=%q)\n", ds.namespace, ds.walPath)
 	if err := ds.replayWAL(); err != nil {
-		ds.walMutex.Unlock()
 		return fmt.Errorf("failed to replay WAL for %q: %v", ds.namespace, err)
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG: after replay, ds.data has %d keys\n", len(ds.data))
 
-	// After replay, save combined state (snapshot + WAL) and truncate WAL
-	// (unlock walMutex first since saveToDisk needs other locks)
+	// Save merged state (snapshot + replayed WAL)
+	// Release walMutex since saveToDisk needs other locks
 	ds.walMutex.Unlock()
 	if ds.persistPath != "" {
 		if err := ds.saveToDisk(); err != nil {
+			ds.walMutex.Lock()
 			return err // saveToDisk already calls truncateWAL on success
+		}
+	} else {
+		// No persist file, just truncate WAL
+		if err := ds.truncateWAL(); err != nil {
+			ds.walMutex.Lock()
+			return fmt.Errorf("failed to truncate WAL for %q: %v", ds.namespace, err)
 		}
 	}
 	ds.walMutex.Lock()
+
+	return nil
+}
+
+// openWALForWrites opens the WAL file for appending new entries
+func (ds *DatastoreValue) openWALForWrites() error {
+	if ds.walPath == "" {
+		return nil
+	}
+
+	ds.walMutex.Lock()
+	defer ds.walMutex.Unlock()
 
 	// Create parent directory if needed
 	walDir := core.Dir(ds.walPath)
@@ -1306,7 +1324,6 @@ func (ds *DatastoreValue) initWAL() error {
 		}()
 	}
 
-	ds.walMutex.Unlock()
 	return nil
 }
 
@@ -1327,18 +1344,22 @@ func (ds *DatastoreValue) replayWAL() error {
 	defer file.Close()
 
 	decoder := gob.NewDecoder(file)
+	entryCount := 0
 	for {
 		var entry WALEntry
 		if err := decoder.Decode(&entry); err != nil {
 			if err.Error() == "EOF" {
 				break // End of file
 			}
+			fmt.Fprintf(os.Stderr, "DEBUG: error decoding WAL entry #%d: %v\n", entryCount, err)
 			return fmt.Errorf("failed to decode WAL entry: %v", err)
 		}
 
 		// Apply entry to data (replays the exact key-value state)
 		ds.data[entry.Key] = entry.Value
+		entryCount++
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG: replayed %d WAL entries\n", entryCount)
 
 	return nil
 }
@@ -1392,19 +1413,20 @@ func (ds *DatastoreValue) truncateWAL() error {
 	ds.walMutex.Lock()
 	defer ds.walMutex.Unlock()
 
-	// Only truncate if WAL file was actually open
-	if ds.walFile == nil {
-		return nil // WAL never opened, nothing to truncate
+	// Close current WAL file if it's open
+	if ds.walFile != nil {
+		ds.walFile.Close()
+		ds.walFile = nil
+		ds.walEncoder = nil
 	}
 
-	// Close current WAL file
-	ds.walFile.Close()
-	ds.walFile = nil
-	ds.walEncoder = nil
-
-	// Truncate the WAL file
+	// Truncate the WAL file (even if it wasn't previously open)
+	fmt.Fprintf(os.Stderr, "DEBUG: truncating WAL %q\n", ds.walPath)
 	if err := os.Truncate(ds.walPath, 0); err != nil {
-		return fmt.Errorf("failed to truncate WAL %q: %v", ds.walPath, err)
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to truncate WAL %q: %v", ds.walPath, err)
+		}
+		// File doesn't exist - that's OK, nothing to truncate
 	}
 
 	// Reopen for appending
@@ -1415,6 +1437,7 @@ func (ds *DatastoreValue) truncateWAL() error {
 
 	ds.walFile = file
 	ds.walEncoder = gob.NewEncoder(file)
+	fmt.Fprintf(os.Stderr, "DEBUG: WAL truncated and reopened for %q\n", ds.walPath)
 
 	return nil
 }

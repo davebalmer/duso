@@ -1255,11 +1255,9 @@ func (ds *DatastoreValue) recoverFromWAL() error {
 	defer ds.walMutex.Unlock()
 
 	// Replay WAL entries on top of loaded snapshot
-	fmt.Fprintf(os.Stderr, "DEBUG: replaying WAL for %q (path=%q)\n", ds.namespace, ds.walPath)
 	if err := ds.replayWAL(); err != nil {
 		return fmt.Errorf("failed to replay WAL for %q: %v", ds.namespace, err)
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG: after replay, ds.data has %d keys\n", len(ds.data))
 
 	// Save merged state (snapshot + replayed WAL)
 	// Release walMutex since saveToDisk needs other locks
@@ -1351,7 +1349,6 @@ func (ds *DatastoreValue) replayWAL() error {
 			if err.Error() == "EOF" {
 				break // End of file
 			}
-			fmt.Fprintf(os.Stderr, "DEBUG: error decoding WAL entry #%d: %v\n", entryCount, err)
 			return fmt.Errorf("failed to decode WAL entry: %v", err)
 		}
 
@@ -1359,7 +1356,6 @@ func (ds *DatastoreValue) replayWAL() error {
 		ds.data[entry.Key] = entry.Value
 		entryCount++
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG: replayed %d WAL entries\n", entryCount)
 
 	return nil
 }
@@ -1421,7 +1417,6 @@ func (ds *DatastoreValue) truncateWAL() error {
 	}
 
 	// Truncate the WAL file (even if it wasn't previously open)
-	fmt.Fprintf(os.Stderr, "DEBUG: truncating WAL %q\n", ds.walPath)
 	if err := os.Truncate(ds.walPath, 0); err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to truncate WAL %q: %v", ds.walPath, err)
@@ -1437,7 +1432,6 @@ func (ds *DatastoreValue) truncateWAL() error {
 
 	ds.walFile = file
 	ds.walEncoder = gob.NewEncoder(file)
-	fmt.Fprintf(os.Stderr, "DEBUG: WAL truncated and reopened for %q\n", ds.walPath)
 
 	return nil
 }

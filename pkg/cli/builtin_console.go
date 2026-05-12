@@ -17,7 +17,7 @@ func builtinPrint(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, fmt.Sprintf("%v", val))
+			parts = append(parts, runtime.ValueForDisplay(val))
 		} else {
 			break
 		}
@@ -50,7 +50,7 @@ func builtinError(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, fmt.Sprintf("%v", val))
+			parts = append(parts, runtime.ValueForDisplay(val))
 		} else {
 			break
 		}
@@ -84,7 +84,7 @@ func builtinWrite(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, fmt.Sprintf("%v", val))
+			parts = append(parts, runtime.ValueForDisplay(val))
 		} else {
 			break
 		}
@@ -117,7 +117,7 @@ func builtinDebug(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, fmt.Sprintf("%v", val))
+			parts = append(parts, runtime.ValueForDisplay(val))
 		} else {
 			break
 		}

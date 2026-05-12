@@ -1,0 +1,52 @@
+// Test ValueToDusoString - stringify values to Duso-parsable syntax
+
+print("Arrays")
+print([1, 2, 3])
+print([])
+print(["a", "b", "c"])
+print([true, nil, 3.14])
+
+print("\nObjects")
+print({name="Alice", age=30})
+print({})
+print({x=1, y=2, z=3})
+
+print("\nNested structures")
+print({user={name="Bob", age=25}, active=true})
+print({items=[1, 2, 3], config={timeout=30, retries=5}})
+print({data={nested={deep={value=42}}}})
+
+print("\nStrings")
+print("simple")
+print("with spaces")
+print("with \"quotes\"")
+print("with\ttabs")
+
+print("\nPrimitives")
+print(nil)
+print(true)
+print(false)
+print(42)
+print(3.14)
+
+print("\nFunctions and code")
+fn = function(x) return x * 2 end
+print(fn)
+
+code = parse("1 + 2")
+print(code)
+
+err = parse("invalid @@@ syntax")
+print(err)
+
+print("\nComplex example")
+config = {
+  version = "1.0",
+  features = {search = true, export = false},
+  limits = {
+    requests_per_minute = 100,
+    storage_gb = 10
+  },
+  servers = ["api.example.com", "backup.example.com"]
+}
+print(config)

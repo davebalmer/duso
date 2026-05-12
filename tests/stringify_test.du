@@ -1,0 +1,149 @@
+// Test ValueToDusoString - verify stringify produces valid Duso syntax
+
+passed = 0
+failed = 0
+
+function test(name, fn)
+  try
+    fn()
+    passed = passed + 1
+    print("✓ " + name)
+  catch (err)
+    failed = failed + 1
+    print("✗ " + name + ": " + err)
+  end
+end
+
+test("array stringify", function()
+  str = tostring([1, 2, 3])
+  assert(str == "[1, 2, 3]", "got: " + str)
+  parsed = parse(str)
+  assert(type(parsed) == "code", "should parse to code")
+end)
+
+test("empty array", function()
+  str = tostring([])
+  assert(str == "[]", "got: " + str)
+end)
+
+test("string array", function()
+  str = tostring(["a", "b", "c"])
+  assert(str == "[\"a\", \"b\", \"c\"]", "got: " + str)
+end)
+
+test("object stringify", function()
+  str = tostring({name="Alice", age=30})
+  // Keys are sorted
+  assert(contains(str, "name=\"Alice\""), "should contain name")
+  assert(contains(str, "age=30"), "should contain age")
+  assert(starts_with(str, "{"), "should start with {")
+  assert(ends_with(str, "}"), "should end with }")
+end)
+
+test("empty object", function()
+  str = tostring({})
+  assert(str == "{}", "got: " + str)
+end)
+
+test("nested object", function()
+  str = tostring({user={name="Bob"}})
+  assert(contains(str, "user="), "should contain user key")
+  assert(contains(str, "name=\"Bob\""), "should contain nested name")
+  parsed = parse(str)
+  assert(type(parsed) == "code", "should parse to code")
+end)
+
+test("nil stringify", function()
+  str = tostring(nil)
+  assert(str == "nil", "got: " + str)
+end)
+
+test("boolean true", function()
+  str = tostring(true)
+  assert(str == "true", "got: " + str)
+end)
+
+test("boolean false", function()
+  str = tostring(false)
+  assert(str == "false", "got: " + str)
+end)
+
+test("number integer", function()
+  str = tostring(42)
+  assert(str == "42", "got: " + str)
+end)
+
+test("number float", function()
+  str = tostring(3.14)
+  assert(contains(str, "3.14"), "got: " + str)
+end)
+
+test("string simple", function()
+  str = tostring("hello")
+  assert(str == "\"hello\"", "got: " + str)
+end)
+
+test("string with quotes", function()
+  str = tostring("say \"hi\"")
+  assert(contains(str, "\\\""), "should escape quotes")
+  parsed = parse(str)
+  assert(type(parsed) == "code", "should parse to code")
+end)
+
+test("function stringify", function()
+  fn = function(x) return x + 1 end
+  str = tostring(fn)
+  assert(str == "<function>", "got: " + str)
+end)
+
+test("code stringify", function()
+  code = parse("1 + 2")
+  str = tostring(code)
+  assert(str == "<code>", "got: " + str)
+end)
+
+test("error stringify", function()
+  err = parse("invalid @@@ syntax")
+  str = tostring(err)
+  assert(str == "<code>", "parse error returns code, got: " + str)
+end)
+
+test("complex nested structure", function()
+  data = {
+    config = {timeout=30, retries=5},
+    items = [1, 2, 3],
+    active = true
+  }
+  str = tostring(data)
+  assert(contains(str, "config="), "should contain config")
+  assert(contains(str, "timeout=30"), "should contain timeout")
+  assert(contains(str, "items="), "should contain items")
+  assert(contains(str, "1, 2, 3"), "should contain array values")
+  assert(contains(str, "active=true"), "should contain active")
+  parsed = parse(str)
+  assert(type(parsed) == "code", "should parse to code")
+end)
+
+test("keys are sorted", function()
+  str = tostring({z=3, a=1, m=2})
+  // Should appear in order: a, m, z
+  idx_a = find(str, "a=1")[0].pos
+  idx_m = find(str, "m=2")[0].pos
+  idx_z = find(str, "z=3")[0].pos
+  assert(idx_a < idx_m and idx_m < idx_z, "keys should be alphabetically sorted")
+end)
+
+test("mixed types array", function()
+  str = tostring([1, "two", true, nil, 3.14])
+  assert(contains(str, "1"), "should contain number")
+  assert(contains(str, "\"two\""), "should contain string")
+  assert(contains(str, "true"), "should contain boolean")
+  assert(contains(str, "nil"), "should contain nil")
+  parsed = parse(str)
+  assert(type(parsed) == "code", "should parse to code")
+end)
+
+print("\n" + passed + " passed, " + failed + " failed")
+if failed > 0 then
+  exit(1)
+end

@@ -89,19 +89,7 @@ func builtinToNumber(evaluator *Evaluator, args map[string]any) (any, error) {
 // builtinToString converts a value to string
 func builtinToString(evaluator *Evaluator, args map[string]any) (any, error) {
 	if arg, ok := args["0"]; ok {
-		// Special handling for numbers: if it's a whole number, format as integer
-		if num, ok := arg.(float64); ok {
-			if IsInteger(num) {
-				return fmt.Sprintf("%d", int64(num)), nil
-			}
-			return fmt.Sprintf("%v", num), nil
-		}
-		// Special handling for arrays
-		if arrPtr, ok := arg.(*[]Value); ok {
-			val := Value{Type: VAL_ARRAY, Data: arrPtr}
-			return val.String(), nil
-		}
-		return fmt.Sprintf("%v", arg), nil
+		return ValueToDusoString(arg), nil
 	}
 	return nil, fmt.Errorf("tostring() requires an argument")
 }

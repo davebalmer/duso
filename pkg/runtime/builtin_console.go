@@ -14,7 +14,7 @@ func builtinPrint(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, fmt.Sprintf("%v", val))
+			parts = append(parts, ValueForDisplay(val))
 		} else {
 			break
 		}

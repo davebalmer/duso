@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/duso-org/duso/pkg/core"
 )
 
 // Global registry of namespaced datastores
@@ -1118,6 +1120,14 @@ func (ds *DatastoreValue) saveToDisk() error {
 		return fmt.Errorf("failed to serialize datastore %q: %v", ds.namespace, err)
 	}
 
+	// Create parent directory if needed
+	persistDir := core.Dir(ds.persistPath)
+	if persistDir != "" && persistDir != "." {
+		if err := os.MkdirAll(persistDir, 0755); err != nil {
+			return fmt.Errorf("failed to create datastore directory %q: %v", persistDir, err)
+		}
+	}
+
 	// Open file for writing
 	file, err := os.OpenFile(ds.persistPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -1183,7 +1193,6 @@ func (ds *DatastoreValue) initWAL() error {
 	}
 
 	ds.walMutex.Lock()
-	defer ds.walMutex.Unlock()
 
 	// Register gob types for encoding/decoding
 	gob.Register([]any{})
@@ -1197,7 +1206,26 @@ func (ds *DatastoreValue) initWAL() error {
 
 	// Replay WAL entries on top of snapshot
 	if err := ds.replayWAL(); err != nil {
+		ds.walMutex.Unlock()
 		return fmt.Errorf("failed to replay WAL for %q: %v", ds.namespace, err)
+	}
+
+	// After replay, save combined state (snapshot + WAL) and truncate WAL
+	// (unlock walMutex first since saveToDisk needs other locks)
+	ds.walMutex.Unlock()
+	if ds.persistPath != "" {
+		if err := ds.saveToDisk(); err != nil {
+			return err // saveToDisk already calls truncateWAL on success
+		}
+	}
+	ds.walMutex.Lock()
+
+	// Create parent directory if needed
+	walDir := core.Dir(ds.walPath)
+	if walDir != "" && walDir != "." {
+		if err := os.MkdirAll(walDir, 0755); err != nil {
+			return fmt.Errorf("failed to create WAL directory %q: %v", walDir, err)
+		}
 	}
 
 	// Open WAL file for appending
@@ -1226,6 +1254,7 @@ func (ds *DatastoreValue) initWAL() error {
 		}()
 	}
 
+	ds.walMutex.Unlock()
 	return nil
 }
 

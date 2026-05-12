@@ -29,10 +29,13 @@ import (
 //   - .expire(key, ttlSeconds) - Set time-to-live for a key
 //   - .save() - Explicitly save to disk (if configured)
 //   - .load() - Explicitly load from disk (if configured)
+//   - .keys() - Get array of all keys in the store
 //
 // Configuration options:
-//   - persist (string) - Path to JSON file for persistence
-//   - persist_interval (number) - Auto-save interval in seconds
+//   - persist (string) - Path to JSON file for persistence snapshots
+//   - persist_interval (number) - Auto-save snapshot interval in seconds
+//   - wal (string) - Path to Write-Ahead Log file for crash durability
+//   - wal_sync_interval (number) - WAL sync mode: 0 = sync every write (durable, default), >0 = batch writes every N seconds (faster)
 //
 // Multiple scripts can share the same namespace to coordinate work.
 //
@@ -46,6 +49,15 @@ import (
 //	store.decrement("counter", 3)  // Decrement by 3
 //	store.push("items", {id = 1})
 //	store.wait("counter", 10)  // Block until counter reaches 10
+//
+// Production example with WAL:
+//
+//	store = datastore("myapp", {
+//	  persist = "data.json",
+//	  wal = "data.wal",
+//	  wal_sync_interval = 0,        // Fsync every write (fully durable)
+//	  persist_interval = 300        // Snapshot every 5 minutes
+//	})
 // builtinDatastore creates a namespaced thread-safe key/value store
 func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 		// Get namespace from first positional or named argument

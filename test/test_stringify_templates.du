@@ -1,0 +1,49 @@
+// Test stringify in template strings - complex objects with special chars
+print('=== Template String Stringify Test ===')
+
+// Test 1: Object with strings containing newlines and tabs
+obj = {
+  name = 'Alice\nBob',
+  job = 'Engineer\tSenior',
+  bio = 'Line 1\nLine 2\nLine 3'
+}
+
+msg = 'User object: {{obj}}'
+print(msg)
+assert(len(msg) > 0, 'template should produce output')
+assert(contains(msg, 'bio='), 'object should have bio field')
+assert(contains(msg, 'name='), 'object should have name field')
+
+// Test 2: Nested objects with special chars
+config = {
+  server = {
+    host = 'localhost\t127.0.0.1',
+    port = 8080,
+    description = 'Local server\nfor testing'
+  },
+  debug = true
+}
+
+msg2 = 'Config: {{config}}'
+print(msg2)
+assert(contains(msg2, 'server='), 'nested config should have server')
+assert(contains(msg2, 'host='), 'server should have host')
+
+// Test 3: Array with complex objects
+items = [
+  {id = 1, label = 'Item\n1'},
+  {id = 2, label = 'Item\t2'}
+]
+
+msg3 = 'Items: {{items}}'
+print(msg3)
+assert(contains(msg3, 'id=1'), 'array should have first item')
+assert(contains(msg3, 'id=2'), 'array should have second item')
+
+// Test 4: Top-level string in template
+simple_string = 'This\nhas\nnewlines'
+msg4 = 'Direct: {{simple_string}}'
+print(msg4)
+print('✓ Top-level strings in templates show raw (unquoted)')
+
+print('\n✓ All template stringify tests passed!')

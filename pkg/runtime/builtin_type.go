@@ -1,6 +1,10 @@
 package runtime
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/duso-org/duso/pkg/script"
+)
 
 // builtinLen returns the length of an array, object, string, or binary (returns 0 for nil)
 func builtinLen(evaluator *Evaluator, args map[string]any) (any, error) {
@@ -89,7 +93,9 @@ func builtinToNumber(evaluator *Evaluator, args map[string]any) (any, error) {
 // builtinToString converts a value to string
 func builtinToString(evaluator *Evaluator, args map[string]any) (any, error) {
 	if arg, ok := args["0"]; ok {
-		return ValueToDusoString(arg), nil
+		// Convert to script Value and use ValueToDusoString
+		val := InterfaceToValue(arg)
+		return script.ValueToDusoString(val), nil
 	}
 	return nil, fmt.Errorf("tostring() requires an argument")
 }

@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/duso-org/duso/pkg/script"
 )
 
 // builtinPrint prints values to stdout with newline
@@ -14,7 +16,9 @@ func builtinPrint(evaluator *Evaluator, args map[string]any) (any, error) {
 	for i := 0; ; i++ {
 		key := fmt.Sprintf("%d", i)
 		if val, ok := args[key]; ok {
-			parts = append(parts, ValueForDisplay(val))
+			// Convert to Value and use script's ValueForDisplay
+			scriptVal := InterfaceToValue(val)
+			parts = append(parts, script.ValueForDisplay(scriptVal))
 		} else {
 			break
 		}

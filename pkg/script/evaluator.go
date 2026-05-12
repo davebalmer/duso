@@ -1576,8 +1576,8 @@ func (e *Evaluator) evalTemplateLiteral(lit *TemplateLiteral) (Value, error) {
 				// For non-Duso errors, wrap with template position
 				return NewNil(), e.wrapError(err, lit)
 			}
-			// Convert to string using our String() method
-			result += val.String()
+			// Convert to string using ValueForDisplay for proper formatting
+			result += ValueForDisplay(val)
 		}
 	}
 	return NewString(result), nil

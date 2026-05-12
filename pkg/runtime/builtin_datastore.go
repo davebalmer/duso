@@ -3,6 +3,8 @@ package runtime
 import (
 	"fmt"
 	"time"
+
+	"github.com/duso-org/duso/pkg/core"
 )
 
 // NewDatastoreFunction creates the datastore(namespace, config) builtin.
@@ -33,7 +35,7 @@ import (
 //   - .keys() - Get array of all keys in the store
 //
 // Configuration options:
-//   - persist (string) - Path to JSON file for persistence snapshots
+//   - persist (string) - Path to persistence file (binary gob format) for snapshots and recovery
 //   - persist_interval (number) - Auto-save snapshot interval in seconds
 //   - wal (string) - Path to Write-Ahead Log file for crash durability
 //   - wal_sync_interval (number) - WAL sync mode: 0 = sync every write (durable, default), >0 = batch writes every N seconds (faster)
@@ -42,7 +44,7 @@ import (
 //
 // Example:
 //
-//	store = datastore("myapp", {persist = "data.json", persist_interval = 60})
+//	store = datastore("myapp", {persist = "/var/lib/app/data.gob", persist_interval = 60})
 //	store.set("status", "running")
 //	store.increment("counter")  // Increment by 1 (default)
 //	store.decrement("counter")  // Decrement by 1 (default)
@@ -54,8 +56,8 @@ import (
 // Production example with WAL:
 //
 //	store = datastore("myapp", {
-//	  persist = "data.json",
-//	  wal = "data.wal",
+//	  persist = "/var/lib/app/data.gob",
+//	  wal = "/var/lib/app/data.wal",
 //	  wal_sync_interval = 0,        // Fsync every write (fully durable)
 //	  persist_interval = 300        // Snapshot every 5 minutes
 //	})
@@ -86,6 +88,20 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			// Named argument
 			if cfgMap, ok := cfg.(map[string]any); ok {
 				config = cfgMap
+			}
+		}
+
+		// Resolve relative paths to current working directory
+		// (Relative paths use CWD, not script dir, to avoid read-only issues with bundled binaries)
+		if config != nil {
+			// Resolve persist path
+			if persistPath, ok := config["persist"].(string); ok && persistPath != "" && !core.IsAbsolute(persistPath) {
+				config["persist"] = core.Join(".", persistPath)
+			}
+
+			// Resolve wal path
+			if walPath, ok := config["wal"].(string); ok && walPath != "" && !core.IsAbsolute(walPath) {
+				config["wal"] = core.Join(".", walPath)
 			}
 		}
 

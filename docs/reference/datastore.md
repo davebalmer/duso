@@ -1,6 +1,6 @@
 # datastore()
 
-Create a thread-safe in-memory key/value store with optional JSON persistence. Perfect for coordinating work between spawned scripts.
+Create a thread-safe in-memory key/value store with optional binary persistence. Perfect for coordinating work between spawned scripts.
 
 ## Signature
 
@@ -12,9 +12,9 @@ datastore(namespace [, config])
 
 - `namespace` (string) - Namespace identifier. Multiple scripts access the same store via same namespace
 - `config` (optional, object) - Configuration object:
-  - `persist` (string) - Path to JSON file for snapshots and recovery
+  - `persist` (string) - Path to persistence file (binary gob format) for snapshots and recovery. Relative paths resolve to current working directory. **Recommended: Use absolute paths for production consistency** (e.g., `/var/lib/app/db.gob` or `/data/db.gob`)
   - `persist_interval` (number) - Auto-save snapshot interval in seconds (only if persist configured)
-  - `wal` (string) - Path to Write-Ahead Log file for crash durability
+  - `wal` (string) - Path to Write-Ahead Log file for crash durability. Relative paths resolve to current working directory. **Recommended: Use absolute paths for production consistency** (e.g., `/var/lib/app/db.wal`)
   - `wal_sync_interval` (number) - WAL sync mode: 0 = sync every write (durable, default), >0 = batch writes every N seconds (faster)
 
 ## Returns
@@ -70,7 +70,7 @@ By default, datastores are in-memory only. To make a datastore crash-safe and pr
 
 With WAL enabled:
 1. **Write** → Logged to WAL file (disk) → Applied to memory
-2. **Snapshot** → Periodic `save()` writes full state to JSON
+2. **Snapshot** → Periodic `save()` writes full state to binary persistence file
 3. **Truncate** → After successful snapshot, WAL is cleared (snapshot now captures that state)
 4. **Recovery** → On restart: load snapshot, replay any post-snapshot WAL entries
 
@@ -85,16 +85,16 @@ With WAL enabled:
 ```duso
 // Fully durable: sync every write (safe default)
 store = datastore("myapp", {
-  persist = "db.json",
-  wal = "db.wal",
+  persist = "/var/lib/app/db.gob",
+  wal = "/var/lib/app/db.wal",
   wal_sync_interval = 0,        // Fsync every write
   persist_interval = 60          // Snapshot every 60 seconds
 })
 
 // Batched durability: faster but trades safety for speed
 store = datastore("myapp", {
-  persist = "db.json",
-  wal = "db.wal",
+  persist = "/var/lib/app/db.gob",
+  wal = "/var/lib/app/db.wal",
   wal_sync_interval = 5,         // Fsync every 5 seconds
   persist_interval = 300         // Snapshot every 5 minutes
 })
@@ -172,7 +172,7 @@ Save state to disk for recovery:
 
 ```duso
 store = datastore("app_state", {
-  persist = "state.json",
+  persist = "/var/lib/app/state.gob",
   persist_interval = 60  // Auto-save every 60 seconds
 })
 
@@ -191,8 +191,8 @@ Use Write-Ahead Logging for crash-safe production databases:
 
 ```duso
 store = datastore("production_db", {
-  persist = "db.json",
-  wal = "db.wal",
+  persist = "/var/lib/app/db.gob",
+  wal = "/var/lib/app/db.wal",
   wal_sync_interval = 0,        // Fsync every write (fully durable)
   persist_interval = 300        // Snapshot every 5 minutes
 })
@@ -205,8 +205,8 @@ store.push("activity_log", {user = "user_123", action = "login", time = now()})
 // On process restart, all writes are automatically recovered
 // New process connects to same datastore:
 recovered_store = datastore("production_db", {
-  persist = "db.json",
-  wal = "db.wal"
+  persist = "/var/lib/app/db.gob",
+  wal = "/var/lib/app/db.wal"
 })
 print(recovered_store.get("user_123"))  // Alice's data survives crash
 print(recovered_store.get("total_users"))  // Counter state preserved
@@ -516,7 +516,7 @@ If `persist` is configured:
 - **Manual save**: Call `store.save()` for paranoid writes
 - **Shutdown**: On process exit (Ctrl+C), final save happens
 
-JSON format preserves all Duso types (arrays, objects, numbers, strings, booleans).
+Binary gob encoding preserves all Duso types with type safety (arrays, objects, numbers, strings, booleans, nil).
 
 ## Timeout on Wait
 

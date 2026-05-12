@@ -3,7 +3,6 @@ package runtime
 import (
 	"container/heap"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -1149,7 +1148,7 @@ func (ds *DatastoreValue) Shutdown() error {
 	return nil
 }
 
-// saveToDisk serializes the datastore to JSON file and flushes to disk
+// saveToDisk serializes the datastore to a gob file and flushes to disk
 // After successful save, truncates the WAL (if configured)
 func (ds *DatastoreValue) saveToDisk() error {
 	if ds.persistPath == "" {
@@ -1162,11 +1161,9 @@ func (ds *DatastoreValue) saveToDisk() error {
 	ds.dataMutex.RLock()
 	defer ds.dataMutex.RUnlock()
 
-	// Marshal to JSON
-	jsonData, err := json.MarshalIndent(ds.data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to serialize datastore %q: %v", ds.namespace, err)
-	}
+	// Register gob types for encoding
+	gob.Register([]any{})
+	gob.Register(map[string]any{})
 
 	// Create parent directory if needed
 	persistDir := core.Dir(ds.persistPath)
@@ -1183,9 +1180,10 @@ func (ds *DatastoreValue) saveToDisk() error {
 	}
 	defer file.Close()
 
-	// Write JSON data
-	if _, err := file.Write(jsonData); err != nil {
-		return fmt.Errorf("failed to write datastore %q to %q: %v", ds.namespace, ds.persistPath, err)
+	// Encode to gob
+	encoder := gob.NewEncoder(file)
+	if err := encoder.Encode(ds.data); err != nil {
+		return fmt.Errorf("failed to serialize datastore %q: %v", ds.namespace, err)
 	}
 
 	// Flush to disk to ensure data hits storage
@@ -1204,7 +1202,7 @@ func (ds *DatastoreValue) saveToDisk() error {
 	return nil
 }
 
-// loadFromDisk deserializes the datastore from JSON file
+// loadFromDisk deserializes the datastore from gob file
 func (ds *DatastoreValue) loadFromDisk() error {
 	if ds.persistPath == "" {
 		return nil // No persistence configured
@@ -1213,20 +1211,26 @@ func (ds *DatastoreValue) loadFromDisk() error {
 	ds.fileWriteMutex.Lock()
 	defer ds.fileWriteMutex.Unlock()
 
-	// Read file (fail silently if not exists)
-	jsonData, err := os.ReadFile(ds.persistPath)
+	// Open file (fail silently if not exists)
+	file, err := os.Open(ds.persistPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil // File doesn't exist yet - OK
 		}
 		return fmt.Errorf("failed to read datastore %q from %q: %v", ds.namespace, ds.persistPath, err)
 	}
+	defer file.Close()
 
 	ds.dataMutex.Lock()
 	defer ds.dataMutex.Unlock()
 
-	// Unmarshal from JSON
-	if err := json.Unmarshal(jsonData, &ds.data); err != nil {
+	// Register gob types for decoding
+	gob.Register([]any{})
+	gob.Register(map[string]any{})
+
+	// Decode from gob
+	decoder := gob.NewDecoder(file)
+	if err := decoder.Decode(&ds.data); err != nil {
 		return fmt.Errorf("failed to deserialize datastore %q: %v", ds.namespace, err)
 	}
 
@@ -1388,12 +1392,15 @@ func (ds *DatastoreValue) truncateWAL() error {
 	ds.walMutex.Lock()
 	defer ds.walMutex.Unlock()
 
-	// Close current WAL file
-	if ds.walFile != nil {
-		ds.walFile.Close()
-		ds.walFile = nil
-		ds.walEncoder = nil
+	// Only truncate if WAL file was actually open
+	if ds.walFile == nil {
+		return nil // WAL never opened, nothing to truncate
 	}
+
+	// Close current WAL file
+	ds.walFile.Close()
+	ds.walFile = nil
+	ds.walEncoder = nil
 
 	// Truncate the WAL file
 	if err := os.Truncate(ds.walPath, 0); err != nil {

@@ -1,0 +1,53 @@
+// Test WAL recovery with nested objects (like Shannan's request data)
+// Run this twice to see if data persists via WAL recovery
+
+print("=== WAL Nested Objects Recovery Test ===")
+
+store = datastore("nested", {
+  persist = "/tmp/nested_db.gob",
+  wal = "/tmp/nested_db.wal",
+  wal_sync_interval = 3600
+})
+
+// Show what we recovered on startup
+print("\n=== Data at Startup ===")
+all_keys = store.keys()
+print("Keys in datastore:", all_keys)
+print("Number of keys:", len(all_keys))
+
+if len(all_keys) > 0 then
+  for key in all_keys do
+    val = store.get(key)
+    print("  " + key + " = " + val)
+  end
+end
+
+// Now add new data
+print("\n=== Adding New Data ===")
+
+request = {
+  id = "req-" + len(all_keys),
+  method = "GET",
+  path = "/api/test",
+  headers = {
+    "content-type" = "application/json",
+    "user-agent" = "test-client"
+  },
+  response = {
+    status = 200,
+    data = {
+      items = ["item1", "item2"],
+      total = 2
+    }
+  }
+}
+
+key = "request:" + len(all_keys)
+store.set(key, request)
+print("✓ Stored " + key)
+
+// Show final state
+print("\n=== Final State ===")
+final_keys = store.keys()
+print("Keys in datastore:", final_keys)
+print("Number of keys:", len(final_keys))

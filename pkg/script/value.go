@@ -309,7 +309,7 @@ func (v Value) String() string {
 			if i > 0 {
 				builder.WriteString(", ")
 			}
-			builder.WriteString(item.String())
+			builder.WriteString(ValueToDusoString(item))
 		}
 		builder.WriteString("]")
 		return builder.String()
@@ -323,8 +323,8 @@ func (v Value) String() string {
 				builder.WriteString(", ")
 			}
 			builder.WriteString(k)
-			builder.WriteString(" = ")
-			builder.WriteString(v.String())
+			builder.WriteString("=")
+			builder.WriteString(ValueToDusoString(v))
 			first = false
 		}
 		builder.WriteString("}")
@@ -482,6 +482,14 @@ func DeepCopy(v Value) Value {
 // DeepCopyAny performs deep copy on any type (for scope boundaries)
 func DeepCopyAny(val any) any {
 	switch v := val.(type) {
+	case *[]Value:
+		// Convert *[]Value to []any (script arrays to Go arrays)
+		arr := *v
+		newArr := make([]any, len(arr))
+		for i, elem := range arr {
+			newArr[i] = DeepCopyAny(ValueToInterface(elem))
+		}
+		return newArr
 	case []any:
 		newArr := make([]any, len(v))
 		for i, elem := range v {

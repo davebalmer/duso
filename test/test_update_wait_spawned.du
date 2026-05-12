@@ -1,0 +1,21 @@
+// Test update() waking up a wait() subscriber in spawned script
+print("=== Testing update() with spawned wait() subscriber ===")
+
+store = datastore("spawn_update_test")
+store.set("config", {status = "pending"})
+
+// Spawn a waiter script
+print("1. Spawning waiter script...")
+spawn("test_update_wait_spawned_waiter.du")
+
+// Give waiter time to start blocking
+sleep(0.5)
+
+// Now update the config from main script
+print("2. Main: Updating config from pending -> ready...")
+store.update("config", {status = "ready", timestamp = now()})
+
+// Wait for waiter to finish
+sleep(1)
+
+print("3. Main: Done!")

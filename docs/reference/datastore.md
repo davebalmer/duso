@@ -12,8 +12,10 @@ datastore(namespace [, config])
 
 - `namespace` (string) - Namespace identifier. Multiple scripts access the same store via same namespace
 - `config` (optional, object) - Configuration object:
-  - `persist` (string) - Path to JSON file for auto-save and auto-load
-  - `persist_interval` (number) - Auto-save interval in seconds (only if persist configured)
+  - `persist` (string) - Path to JSON file for snapshots and recovery
+  - `persist_interval` (number) - Auto-save snapshot interval in seconds (only if persist configured)
+  - `wal` (string) - Path to Write-Ahead Log file for crash durability
+  - `wal_sync_interval` (number) - WAL sync mode: 0 = sync every write (durable, default), >0 = batch writes every N seconds (faster)
 
 ## Returns
 
@@ -58,6 +60,46 @@ Datastore object with methods
 ## Context
 
 Datastores are namespaced globally - all scripts in the same process accessing the same namespace share the same store. This enables coordination patterns without shared memory.
+
+## Durability & Write-Ahead Logging (WAL)
+
+By default, datastores are in-memory only. To make a datastore crash-safe and production-ready, enable Write-Ahead Logging (WAL). Every write is logged to disk before being applied to memory, guaranteeing durability.
+
+### How It Works
+
+With WAL enabled:
+1. **Write** → Logged to WAL file (disk) → Applied to memory
+2. **Snapshot** → Periodic `save()` writes full state to JSON
+3. **Truncate** → After successful snapshot, WAL is cleared (snapshot now captures that state)
+4. **Recovery** → On restart: load snapshot, replay any post-snapshot WAL entries
+
+### Safety Guarantees
+
+- **Crash-safe**: Every write survives process crashes (synced to disk)
+- **ACID-compliant**: Each operation is atomic, durable, and consistent
+- **Fast recovery**: Snapshot + partial WAL replay (not full log)
+
+### Configuration
+
+```duso
+// Fully durable: sync every write (safe default)
+store = datastore("myapp", {
+  persist = "db.json",
+  wal = "db.wal",
+  wal_sync_interval = 0,        // Fsync every write
+  persist_interval = 60          // Snapshot every 60 seconds
+})
+
+// Batched durability: faster but trades safety for speed
+store = datastore("myapp", {
+  persist = "db.json",
+  wal = "db.wal",
+  wal_sync_interval = 5,         // Fsync every 5 seconds
+  persist_interval = 300         // Snapshot every 5 minutes
+})
+```
+
+**Default behavior**: `wal_sync_interval = 0` means every write is immediately synced to disk. This is the safest mode and recommended for production.
 
 ## Examples
 
@@ -140,6 +182,33 @@ store.increment("request_count", 1)
 // On shutdown, save() is called automatically
 // Manual save if paranoid:
 store.save()
+```
+
+### Durable Production Datastore (with WAL)
+
+Use Write-Ahead Logging for crash-safe production databases:
+
+```duso
+store = datastore("production_db", {
+  persist = "db.json",
+  wal = "db.wal",
+  wal_sync_interval = 0,        // Fsync every write (fully durable)
+  persist_interval = 300        // Snapshot every 5 minutes
+})
+
+// Every write is durable - survives process crashes
+store.set("user_123", {name = "Alice", email = "alice@example.com"})
+store.increment("total_users")
+store.push("activity_log", {user = "user_123", action = "login", time = now()})
+
+// On process restart, all writes are automatically recovered
+// New process connects to same datastore:
+recovered_store = datastore("production_db", {
+  persist = "db.json",
+  wal = "db.wal"
+})
+print(recovered_store.get("user_123"))  // Alice's data survives crash
+print(recovered_store.get("total_users"))  // Counter state preserved
 ```
 
 ### Wait with Predicate Function

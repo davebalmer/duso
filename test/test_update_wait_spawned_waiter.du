@@ -1,0 +1,14 @@
+// Spawned waiter script - blocks on config change
+store = datastore("spawn_update_test")
+
+print("   Waiter: Waiting for config to change from 'pending'...")
+result = store.wait("config", timeout=5)
+
+if result != nil then
+  print("   Waiter: ✓ Woke up! New config:", result)
+  if result.status == "ready" then
+    print("   Waiter: ✓ Status is now 'ready' - update() successfully broadcast!")
+  end
+else
+  print("   Waiter: ✗ Timeout (update didn't broadcast)")
+end

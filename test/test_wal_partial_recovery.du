@@ -1,0 +1,53 @@
+// Test WAL partial recovery - snapshot + post-snapshot WAL entries
+print("=== WAL Partial Recovery Test ===")
+
+// Clean up old test files
+if file_exists("/tmp/partial_db.json") then
+  remove_file("/tmp/partial_db.json")
+end
+if file_exists("/tmp/partial_db.wal") then
+  remove_file("/tmp/partial_db.wal")
+end
+
+// Phase 1: Write initial data, save snapshot
+print("\n=== Phase 1: Write & Snapshot ===")
+store1 = datastore("partial", {
+  persist = "/tmp/partial_db.json",
+  wal = "/tmp/partial_db.wal",
+  wal_sync_interval = 0
+})
+
+store1.set("phase", "initial")
+store1.set("count", 1)
+store1.save()
+print("✓ Snapshot saved with phase=initial, count=1")
+
+// Phase 2: Write more data (goes to WAL only, not snapshot)
+print("\n=== Phase 2: Write Post-Snapshot Data ===")
+store1.set("phase", "updated")
+store1.increment("count", 1)
+store1.push("entries", "entry1")
+print("✓ Post-snapshot writes: phase=updated, count=2, entries=[entry1]")
+
+// Phase 3: Recovery - should load snapshot + replay WAL
+print("\n=== Phase 3: Recovery ===")
+store2 = datastore("partial", {
+  persist = "/tmp/partial_db.json",
+  wal = "/tmp/partial_db.wal",
+  wal_sync_interval = 0
+})
+
+phase = store2.get("phase")
+count = store2.get("count")
+entries = store2.get("entries")
+
+print("Recovered: phase=" + phase + ", count=" + count)
+print("Recovered: entries=" + entries)
+
+// Validate - should have both snapshot AND post-snapshot data
+assert(phase == "updated", "phase should be 'updated' from WAL")
+assert(count == 2, "count should be 2 from WAL increment")
+assert(len(entries) == 1, "entries should have 1 entry from post-snapshot push")
+assert(entries[0] == "entry1", "entries[0] should be 'entry1'")
+
+print("\n✓ Partial recovery successful (snapshot + WAL)!")

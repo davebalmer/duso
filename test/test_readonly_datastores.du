@@ -1,33 +1,33 @@
 // Test readonly datastore (sys) and special behaviors
 
 // Test sys datastore is readonly
-sys = datastore("sys")
-assert(len(sys.keys()) > 0, "sys should have system keys")
+sys_store = datastore("sys")
+assert(len(sys_store.keys()) > 0, "sys should have system keys")
 
 try
-  sys.set("test", "value")
+  sys_store.set("test", "value")
   throw("sys.set should have failed")
 catch (err)
   assert(err != nil, "sys.set should throw error")
 end
 
 try
-  sys.delete("key")
+  sys_store.delete("key")
   throw("sys.delete should have failed")
 catch (err)
   assert(err != nil, "sys.delete should throw error")
 end
 
 try
-  sys.clear()
+  sys_store.clear()
   throw("sys.clear should have failed")
 catch (err)
   assert(err != nil, "sys.clear should throw error")
 end
 
 // Test vfs datastore returns nil on delete (doesn't copy file contents)
-vfs = datastore("vfs")
-delete_result = vfs.delete("any_key")
+vfs_store = datastore("vfs")
+delete_result = vfs_store.delete("any_key")
 assert(delete_result == nil, "vfs.delete should return nil")
 
 print("✓ test_readonly_datastores passed")

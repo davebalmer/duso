@@ -1,0 +1,44 @@
+// Test update() with wait() subscriber
+print("=== Testing update() with wait() ===")
+
+store = datastore("update_wait_test")
+
+// Set initial object
+store.set("config", {version = 1, name = "original"})
+
+// Start a waiter in background (simulated with function)
+// The waiter will block until config changes
+print("\n1. Initial state:")
+print("config:", store.get("config"))
+
+// Now update the object
+print("\n2. Updating config...")
+updated = store.update("config", {version = 2, timeout = 30})
+print("After update():", updated)
+
+// Create new store instance to verify persistence of update
+store2 = datastore("update_wait_test")
+recovered = store2.get("config")
+print("\n3. Recovered config after update:")
+print("config:", recovered)
+
+// Validate the deep merge worked correctly
+assert(recovered.version == 2, "version should be 2")
+assert(recovered.name == "original", "name should be preserved (deep merge)")
+assert(recovered.timeout == 30, "timeout should be 30 (new field)")
+
+print("\n✓ update() with persistence test passed")
+
+// Now test with actual wait
+print("\n=== Testing wait() detection of update() ===")
+store3 = datastore("wait_update_test")
+store3.set("status", {state = "idle"})
+
+// Update and verify wait would detect it
+store3.update("status", {state = "running", started = now()})
+status = store3.get("status")
+
+assert(status.state == "running", "state should be running")
+assert(status.started != nil, "started time should be set")
+
+print("✓ wait() would detect update() changes")

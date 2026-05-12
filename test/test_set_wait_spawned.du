@@ -1,0 +1,21 @@
+// Test that set() wakes up wait() subscribers (not just update())
+print("=== Testing set() wakes wait() subscriber ===")
+
+store = datastore("set_wait_test")
+store.set("value", "initial")
+
+// Spawn a waiter script
+print("1. Spawning waiter script...")
+spawn("test_set_wait_spawned_waiter.du")
+
+// Give waiter time to start blocking
+sleep(0.5)
+
+// Now set a new value from main script
+print("2. Main: Setting value to 'updated'...")
+store.set("value", "updated")
+
+// Wait for waiter to finish
+sleep(1)
+
+print("3. Main: Done!")

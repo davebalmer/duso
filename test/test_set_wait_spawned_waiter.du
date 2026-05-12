@@ -1,0 +1,14 @@
+// Spawned waiter script - blocks on value change
+store = datastore("set_wait_test")
+
+print("   Waiter: Waiting for value to change from 'initial'...")
+result = store.wait("value", timeout=5)
+
+if result != nil then
+  print("   Waiter: ✓ Woke up! New value: " + result)
+  if result == "updated" then
+    print("   Waiter: ✓ set() successfully broadcast!")
+  end
+else
+  print("   Waiter: ✗ Timeout (set didn't broadcast)")
+end

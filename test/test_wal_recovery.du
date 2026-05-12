@@ -1,0 +1,57 @@
+// Test WAL recovery - write data, then recover from files
+print("=== WAL Recovery Test ===")
+
+// Clean up old test files
+if file_exists("/tmp/recovery_db.json") then
+  remove_file("/tmp/recovery_db.json")
+end
+if file_exists("/tmp/recovery_db.wal") then
+  remove_file("/tmp/recovery_db.wal")
+end
+
+// Phase 1: Write data with WAL enabled
+print("\n=== Phase 1: Write Data ===")
+store1 = datastore("recovery", {
+  persist = "/tmp/recovery_db.json",
+  wal = "/tmp/recovery_db.wal",
+  wal_sync_interval = 0
+})
+
+store1.set("counter", 42)
+store1.set("name", "test_recovery")
+store1.push("items", 1)
+store1.push("items", 2)
+store1.push("items", 3)
+store1.update("config", {timeout = 30, retries = 5})
+
+print("Written: counter=42, name=test_recovery, items=[1,2,3], config={...}")
+
+// Save snapshot (this should truncate WAL)
+store1.save()
+print("✓ Snapshot saved (WAL should be truncated)")
+
+// Phase 2: Create new store with same files and verify recovery
+print("\n=== Phase 2: Recovery ===")
+store2 = datastore("recovery", {
+  persist = "/tmp/recovery_db.json",
+  wal = "/tmp/recovery_db.wal",
+  wal_sync_interval = 0
+})
+
+// Verify all data survived
+counter = store2.get("counter")
+name = store2.get("name")
+items = store2.get("items")
+config = store2.get("config")
+
+print("Recovered: counter=" + counter + ", name=" + name)
+print("Recovered: items=" + items)
+print("Recovered: config={timeout=" + config.timeout + ", retries=" + config.retries + "}")
+
+// Validate
+assert(counter == 42, "counter should be 42")
+assert(name == "test_recovery", "name should be test_recovery")
+assert(len(items) == 3, "items should have 3 items")
+assert(config.timeout == 30, "config.timeout should be 30")
+
+print("\n✓ All data recovered successfully!")

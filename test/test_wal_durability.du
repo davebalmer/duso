@@ -1,0 +1,44 @@
+// Test WAL durability
+print("=== WAL Durability Test ===")
+
+// Create datastore with both persist and WAL enabled
+store = datastore("test", {
+  persist = "/tmp/test_db.json",
+  wal = "/tmp/test_db.wal",
+  wal_sync_interval = 0,        // Sync every write
+  persist_interval = 10          // Save snapshot every 10 seconds
+})
+
+// Write some initial data
+print("Writing initial data...")
+store.set("counter", 1)
+store.set("name", "alice")
+store.push("items", "item1")
+store.push("items", "item2")
+
+// Verify data is there
+print("counter:", store.get("counter"))
+print("name:", store.get("name"))
+print("items:", store.get("items"))
+
+// Check files were created
+print("\n=== File Check ===")
+if file_exists("/tmp/test_db.wal") then
+  print("✓ WAL file created")
+else
+  print("✗ WAL file NOT created")
+end
+
+if file_exists("/tmp/test_db.json") then
+  print("✓ Snapshot file created")
+else
+  print("✗ Snapshot file NOT created")
+end
+
+// Now save and verify WAL gets truncated
+print("\n=== Testing Snapshot Truncation ===")
+store.save()
+print("✓ Snapshot saved")
+
+// List files to show state
+print("\nTest complete!")

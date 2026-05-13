@@ -15,7 +15,10 @@
 - 📚 **Learn Quickly:** Simple, consistent scripting language. Full docs and examples built in.
 - ✨ **Use and Integrate AI:** Let your AI code faster in a language made for it. Connect your app to popular AI agents.
 - 🌐 **Build Web and API Servers:** Templates, routing, JSON, SSL, JWT, CORS, RSA, websockets. Fully featured and built-in.
-- 🗄️ **Use Powerful Datastores:** Thread-safe data structures for process coordination, caching, and session state.
+- 🗄️ **Use Powerful Datastores:** ACID-compliant NoSQL datastores with thread-safe operations for process coordination, caching, and session state.
+- 🗄️ **SQL Database Support:** Built-in MySQL, MariaDB, and TiDB drivers for relational data at scale.
+- 🤖 **Connect to Any AI:** Built-in integrations with Anthropic, OpenAI, Microsoft Azure, Groq, and Ollama.
+- 🔌 **Growing Vendor Support:** CouchDB, Stripe, and expanding ecosystem of first-party integrations.
 - 🔒 **Secure Local Files:** Sandbox mode restricts file access and uses virtual filesystem for safety.
 - 🪲 **Debug Concurrent Code:** Breakpoints, stack traces, code context. Handle one issue at a time.
 - 📦 **Bundle into a Single Binary:** Wrap your app scripts into a standalone executable. Extend with Go if needed.

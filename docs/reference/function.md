@@ -54,7 +54,17 @@ function compute(x)
 end
 ```
 
-Functions without an explicit return return `nil`.
+Functions without an explicit return statement return `nil`:
+
+```duso
+function log_message(msg)
+  print("Logged: " + msg)
+  // No return statement - implicitly returns nil
+end
+
+result = log_message("hello")
+print(result)  // prints nil
+```
 
 ## Closures
 
@@ -92,10 +102,17 @@ obj.callback("Hello")  // "Message: Hello"
 
 ## Truthiness
 
-In conditions, functions are always truthy:
+A function reference (without calling it) is always truthy:
 
 ```duso
 f = function() return 42 end
-if f then print("true") end  // prints
+if f then print("true") end  // prints - f is a function reference
+```
+
+However, calling a function returns its result, which may or may not be truthy:
+
+```duso
+f = function() return nil end
+if f() then print("true") end  // does NOT print - f() returns nil, which is falsy
 ```
 

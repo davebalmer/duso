@@ -204,6 +204,10 @@
 - [`watch(exprs...)`](/docs/reference/watch.md) Monitor expression values and break on changes (enable with -debug)
 - [`throw(msg)`](/docs/reference/try.md) Throw an error with call stack information
 
+### Testing
+
+- [`assert(condition, message)`](/docs/reference/assert.md) Check a condition and throw an error if false
+
 ### System & Data Storage
 
 - [`sql(namespace, config)`](/docs/reference/sql.md) Create or retrieve a MySQL-compatible database connection pool

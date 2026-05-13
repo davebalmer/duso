@@ -261,6 +261,7 @@ All trigonometric functions work with angles in radians. Use `pi()` for π.
 
 ## Errors and Debugging
 
+- `assert(condition [, message])` check a condition and throw an error if false (essential for testing)
 - `breakpoint([args...])` pause execution and enter debug mode (enable with `-debug`)
 - `throw(message)` throw an error with call stack information
 - `watch(expr, ...)` monitor expression values and break on changes (enable with `-debug`)

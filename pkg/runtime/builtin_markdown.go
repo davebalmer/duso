@@ -24,6 +24,7 @@ func builtinMarkdownHTML(evaluator *Evaluator, args map[string]any) (any, error)
 		"strikethrough": true,
 		"footnotes":     false,
 		"tasklists":     true,
+		"smartquotes":   true,
 	}
 
 	if optArg, ok := args["1"].(map[string]any); ok {
@@ -49,6 +50,9 @@ func builtinMarkdownHTML(evaluator *Evaluator, args map[string]any) (any, error)
 	}
 	if opts["tasklists"] {
 		extensions = append(extensions, extension.TaskList)
+	}
+	if opts["smartquotes"] {
+		extensions = append(extensions, extension.Typographer)
 	}
 
 	md := goldmark.New(

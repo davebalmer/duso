@@ -16,6 +16,7 @@ markdown_html(text, options)
   - `strikethrough` (boolean) - Support strikethrough text (~~text~~) (default: true)
   - `tasklists` (boolean) - Support task lists (default: true)
   - `footnotes` (boolean) - Support footnotes (default: false)
+  - `smartquotes` (boolean) - Convert straight quotes to smart quotes (default: true)
 
 ## Returns
 

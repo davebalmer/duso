@@ -680,6 +680,10 @@ resp.redirect("https://example.com", 302)
 // Send file
 resp.file("./public/index.html", 200)
 
+// Send binary data (image from datastore, etc)
+image = datastore("images").get("avatar_" + user_id)
+resp.binary(image, "image/png", 200)
+
 // Generic response with custom headers
 resp.response("Custom body", 200, {"X-Custom" = "Header"})
 ```
@@ -688,6 +692,7 @@ resp.response("Custom body", 200, {"X-Custom" = "Header"})
 - `json(data, [status])` - Send JSON response with `Content-Type: application/json`
 - `text(data, [status])` - Send plain text with `Content-Type: text/plain`
 - `html(data, [status])` - Send HTML with `Content-Type: text/html`
+- `binary(data, content_type, [status])` - Send binary data (images, archives, etc.) with custom Content-Type
 - `error(status, [message])` - Send error response with JSON body
 - `redirect(url, [status])` - Send redirect (default status: 302)
 - `file(path, [status])` - Serve file from filesystem

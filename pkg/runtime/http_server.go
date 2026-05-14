@@ -1548,6 +1548,32 @@ func (s *HTTPServerValue) sendHTTPResponse(w http.ResponseWriter, data map[strin
 		}
 	}
 
+	// Check for binary_data (in-memory binary serving)
+	if binData, ok := data["binary_data"]; ok {
+		var binBytes []byte
+
+		// Try as script.Value first
+		if binVal, ok := binData.(script.Value); ok && binVal.IsBinary() {
+			binContent := binVal.AsBinary()
+			if binContent != nil && binContent.Data != nil {
+				binBytes = *binContent.Data
+			}
+		} else if binValRef, ok := binData.(*script.ValueRef); ok && binValRef.Val.IsBinary() {
+			// Handle ValueRef wrapper
+			binContent := binValRef.Val.AsBinary()
+			if binContent != nil && binContent.Data != nil {
+				binBytes = *binContent.Data
+			}
+		}
+
+		if len(binBytes) > 0 {
+			// Send response
+			w.WriteHeader(status)
+			_, _ = w.Write(binBytes)
+			return
+		}
+	}
+
 	// Check for filename (binary file serving)
 	if filename, ok := data["filename"]; ok {
 		if filenameStr, ok := filename.(string); ok {
@@ -2142,6 +2168,44 @@ func (rc *RequestContext) GetResponse() map[string]any {
 				"status":    status,
 				"filename":  filename,
 				"scriptDir": scriptDir,
+			}
+			return nil, &script.ExitExecution{Values: []any{responseData}}
+		}),
+
+		// binary(data, content_type [, status]) - Send binary response and exit
+		"binary": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
+			data, ok := args["0"]
+			if !ok {
+				return nil, fmt.Errorf("binary() requires data argument")
+			}
+
+			contentType, ok := args["1"].(string)
+			if !ok {
+				return nil, fmt.Errorf("binary() requires content_type string argument")
+			}
+
+			status := 200.0
+			if s, ok := args["2"]; ok {
+				if statusNum, ok := s.(float64); ok {
+					status = statusNum
+				}
+			} else if s, ok := args["status"]; ok {
+				if statusNum, ok := s.(float64); ok {
+					status = statusNum
+				}
+			}
+
+			// Build headers map
+			headers := map[string]any{
+				"Content-Type": contentType,
+			}
+
+			// Return response data as exit value
+			responseData := map[string]any{
+				"status":       status,
+				"binary_data":  data,
+				"content_type": contentType,
+				"headers":      headers,
 			}
 			return nil, &script.ExitExecution{Values: []any{responseData}}
 		}),

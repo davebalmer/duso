@@ -62,10 +62,24 @@ ctx = context()
 req = ctx.request()
 
 // Access uploaded file
-file = req.files["avatar"]  // binary value with metadata
+file = req.files.avatar
 if file then
-  save_binary(file, "./uploads/" + file["filename"])
+  // file.data is binary for images, string for text/json/etc.
+  if type(file.data) == "binary" then
+    save_binary(file.data, "/STORE/uploads/" + file.filename)
+  end
 end
+```
+
+Note: File uploads require enabling uploads in `http_server()` config:
+```duso
+server = http_server({
+  port = 3000,
+  uploads = {
+    enabled = true,
+    max_size = 10240  // 10MB in KB
+  }
+})
 ```
 
 ## Processing in Workers

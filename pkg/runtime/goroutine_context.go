@@ -31,6 +31,7 @@ type RequestContext struct {
 	CacheControl      string                   // Default Cache-Control header for response helpers (HTTP context only)
 	MaxBodySize       int64                    // Max request body size in bytes (HTTP context only)
 	MaxFormFields     int                      // Max form fields in multipart (HTTP context only)
+	Upload            UploadConfig            // Upload configuration (HTTP context only)
 	WSConnection      any                      // WebSocket connection (if WebSocket handler), nil otherwise
 }
 

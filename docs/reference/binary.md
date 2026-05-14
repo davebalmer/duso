@@ -29,8 +29,47 @@ filename = file["filename"]  // original filename
 ```
 
 **Available metadata:**
-- `filename` - original filename from `load_binary()`
-- `content_type` - may be populated by HTTP file uploads
+- `filename` - original filename from `load_binary()` or HTTP file uploads
+- `content_type` - MIME type, may be populated by HTTP file uploads
+
+## HTTP File Uploads
+
+When file uploads are enabled, uploaded files are accessible via `req.files`:
+
+```duso
+ctx = context()
+req = ctx.request()
+
+// Single file upload
+file = req.files.avatar
+if file then
+  print(file.filename)      // "avatar.png"
+  print(file.content_type)  // "image/png"
+  print(file.size)          // bytes
+  
+  if type(file.data) == "binary" then
+    save_binary(file.data, "/STORE/uploads/" + file.filename)
+  elseif type(file.data) == "string" then
+    // Text file (JSON, XML, etc)
+    parsed = parse_json(file.data)
+  end
+end
+
+// Multiple files on same field → array
+for f in req.files.attachments do
+  print(f.filename)
+end
+```
+
+**MIME Type Handling:**
+- Text MIME types (`text/*`, `application/json`, `application/xml`, etc.) → `file.data` is a string
+- Binary MIME types (images, archives, etc.) → `file.data` is a binary value
+
+**File object properties:**
+- `data` - File content (binary or string depending on MIME type)
+- `filename` - Original filename
+- `content_type` - MIME type
+- `size` - File size in bytes
 
 ## Type Checking
 

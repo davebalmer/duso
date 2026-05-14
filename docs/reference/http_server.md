@@ -41,6 +41,10 @@ http_server([config])
     - `rs256_private_key` (string) - PEM-encoded RSA private key for RS256 signing (optional)
     - `rs256_public_key` (string) - PEM-encoded RSA public key for RS256 verification (optional)
     - `required` (boolean) - Require valid JWT token for all requests (default: false)
+  - `uploads` (object) - File upload configuration (optional):
+    - `enabled` (boolean) - Enable file uploads via multipart/form-data (default: false)
+    - `max_size` (number) - Max file size in KB per uploaded file (default: 10240 = 10MB)
+    - `timeout` (number) - Upload timeout in seconds (reserved for future use)
 
 ## Returns
 
@@ -885,6 +889,70 @@ Each WebSocket connection:
 - Request context (headers, JWT, params) is from the initial upgrade request
 - For coordination between multiple WebSocket connections, use `datastore()` or `spawn()`
 - WebSocket upgrade requests cannot be matched with `"*"` (all methods) - must explicitly register as `"WS"`
+
+## File Uploads
+
+Enable multipart/form-data file uploads with the `uploads` configuration:
+
+```duso
+server = http_server({
+  port = 3000,
+  uploads = {
+    enabled = true,
+    max_size = 10240  // 10MB per file (in KB)
+  }
+})
+
+server.route("POST", "/upload", "upload_handler.du")
+server.start()
+```
+
+In handler scripts, access uploaded files via `req.files`:
+
+```duso
+ctx = context()
+req = ctx.request()
+res = ctx.response()
+
+// Access single file
+file = req.files.avatar
+if file then
+  print(file.filename)      // "avatar.png"
+  print(file.content_type)  // "image/png"
+  print(file.size)          // bytes
+  
+  if type(file.data) == "binary" then
+    save_binary(file.data, "/STORE/uploads/" + file.filename)
+  elseif type(file.data) == "string" then
+    // Text files (JSON, XML, etc.)
+    parsed = parse_json(file.data)
+  end
+end
+
+// Multiple files on same field
+for f in req.files.attachments do
+  print(f.filename)
+end
+```
+
+### MIME Type Handling
+
+- **Text MIME types** (`text/*`, `application/json`, `application/xml`, etc.) → `file.data` is a string
+- **Binary MIME types** (images, archives, etc.) → `file.data` is a binary value
+
+### File Object Properties
+
+- `data` - File content (binary or string)
+- `filename` - Original filename from client
+- `content_type` - MIME type (detected from upload header or file extension)
+- `size` - File size in bytes
+
+### Limits and Errors
+
+- Uploads are disabled by default (set `enabled = true` to activate)
+- Max file size is enforced; oversized files are ignored (silently skipped)
+- Form field limits (`max_form_fields`) also apply to file uploads
+- If no files are uploaded, `req.files` is an empty map (never nil)
 
 ## Notes
 

@@ -269,6 +269,31 @@ func builtinHTTPServer(evaluator *Evaluator, args map[string]any) (any, error) {
 		}
 	}
 
+	// Parse uploads config
+	if uploadRaw, ok := config["uploads"]; ok {
+		if uploadMap, ok := uploadRaw.(map[string]any); ok {
+			// Parse enabled flag
+			if enabled, ok := uploadMap["enabled"].(bool); ok {
+				server.Upload.Enabled = enabled
+			}
+
+			// Parse max_size in KB and convert to bytes
+			if maxSizeKB, ok := uploadMap["max_size"].(float64); ok {
+				server.Upload.MaxSize = int64(maxSizeKB) * 1024
+			}
+
+			// Parse timeout (reserved for future use)
+			if timeout, ok := uploadMap["timeout"].(float64); ok {
+				server.Upload.Timeout = time.Duration(timeout) * time.Second
+			}
+		}
+	}
+
+	// Set default max_size if uploads enabled but not configured
+	if server.Upload.Enabled && server.Upload.MaxSize == 0 {
+		server.Upload.MaxSize = 10 * 1024 * 1024 // 10MB default
+	}
+
 	// Parse resource limits
 	if maxBodySize, ok := config["max_body_size"]; ok {
 		if sizeNum, ok := maxBodySize.(float64); ok {

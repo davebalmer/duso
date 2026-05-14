@@ -14,10 +14,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -49,6 +52,13 @@ type JWTConfig struct {
 	Required           bool
 }
 
+// UploadConfig holds file upload settings
+type UploadConfig struct {
+	Enabled bool
+	MaxSize int64         // max bytes per file
+	Timeout time.Duration // reserved for future dedicated upload timeout
+}
+
 // HTTPServerValue represents an HTTP server in Duso.
 // It manages routes and spawns handler scripts for incoming requests.
 type HTTPServerValue struct {
@@ -64,6 +74,7 @@ type HTTPServerValue struct {
 	CacheControl          string            // Default Cache-Control header (e.g., "no-cache, no-store, must-revalidate")
 	CORS                  CORSConfig        // CORS configuration
 	JWT                   JWTConfig         // JWT configuration
+	Upload                UploadConfig      // Upload configuration
 	MaxBodySize           int64             // Max request body size in bytes (default: 10MB)
 	MaxHeaderSize         int64             // Max per-header size in bytes (default: 8KB)
 	MaxHeaders            int               // Max number of headers (default: 100)
@@ -138,6 +149,75 @@ type Route struct {
 	IsStatic    bool           // True if this is a static file route
 	StaticDir   string         // Directory to serve files from (for static routes)
 	IsWebSocket bool           // True if this is a WebSocket route (Method == "WS")
+}
+
+// isTextMIME checks if a content type should be treated as text
+func isTextMIME(contentType string) bool {
+	textTypes := []string{
+		"text/",
+		"application/json",
+		"application/xml",
+		"application/xhtml+xml",
+		"application/javascript",
+		"application/x-yaml",
+		"application/yaml",
+	}
+	for _, t := range textTypes {
+		if strings.HasPrefix(contentType, t) {
+			return true
+		}
+	}
+	return false
+}
+
+// processUploadedFile reads an uploaded file and wraps it as a binary or string value
+func processUploadedFile(fileHeader *multipart.FileHeader, maxSize int64) (map[string]any, error) {
+	if fileHeader == nil {
+		return nil, fmt.Errorf("nil file header")
+	}
+
+	// Check size
+	if maxSize > 0 && fileHeader.Size > maxSize {
+		return nil, fmt.Errorf("file exceeds max size: %d > %d", fileHeader.Size, maxSize)
+	}
+
+	// Open and read file
+	file, err := fileHeader.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Detect MIME type
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		// Fallback to mime.TypeByExtension
+		contentType = mime.TypeByExtension(filepath.Ext(fileHeader.Filename))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+	}
+
+	// Create file object with metadata
+	fileObj := map[string]any{
+		"filename":     fileHeader.Filename,
+		"content_type": contentType,
+		"size":         float64(len(fileBytes)),
+	}
+
+	// Set data as binary or string based on MIME type
+	if isTextMIME(contentType) {
+		fileObj["data"] = string(fileBytes)
+	} else {
+		fileObj["data"] = script.NewBinary(fileBytes)
+	}
+
+	return fileObj, nil
 }
 
 // base64urlEncode encodes data using base64url encoding (no padding)
@@ -1102,6 +1182,7 @@ func (s *HTTPServerValue) handleRequest(w http.ResponseWriter, r *http.Request, 
 		CacheControl:    s.CacheControl,
 		MaxBodySize:     s.MaxBodySize,
 		MaxFormFields:   s.MaxFormFields,
+		Upload:          s.Upload,
 	}
 
 	// Parse handler script
@@ -1635,6 +1716,42 @@ func (rc *RequestContext) GetRequest() any {
 			}
 		}
 
+		// Extract uploaded files if enabled
+		filesMap := make(map[string]any)
+		if rc.Upload.Enabled && rc.Request.MultipartForm != nil && rc.Request.MultipartForm.File != nil {
+			maxFileSize := rc.Upload.MaxSize
+			if maxFileSize == 0 {
+				maxFileSize = 10 * 1024 * 1024 // 10MB default
+			}
+
+			for fieldName, fileHeaders := range rc.Request.MultipartForm.File {
+				if len(fileHeaders) == 0 {
+					continue
+				}
+
+				// Single file vs multiple files
+				if len(fileHeaders) == 1 {
+					file := fileHeaders[0]
+					fileObj, err := processUploadedFile(file, maxFileSize)
+					if err == nil && fileObj != nil {
+						filesMap[fieldName] = fileObj
+					}
+				} else {
+					// Multiple files for same field
+					var fileObjects []any
+					for _, file := range fileHeaders {
+						fileObj, err := processUploadedFile(file, maxFileSize)
+						if err == nil && fileObj != nil {
+							fileObjects = append(fileObjects, fileObj)
+						}
+					}
+					if len(fileObjects) > 0 {
+						filesMap[fieldName] = fileObjects
+					}
+				}
+			}
+		}
+
 		// Read body (cache it since it can only be read once)
 		body := ""
 		if !rc.bodyCached {
@@ -1655,6 +1772,7 @@ func (rc *RequestContext) GetRequest() any {
 			"query":   query,
 			"form":    formData,
 			"body":    body,
+			"files":   filesMap,
 		}
 
 		// Include path params if available

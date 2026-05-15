@@ -1282,24 +1282,25 @@ my_util = require("my_modules/utils")
 
 ### LLM Provider Support
 
+Duso was built with AI in mind and includes modules for several LLM providers:
+
 #### Currently Supported:
 - **Claude** (Anthropic) - via `claude` module with full API feature support
+- **OpenAI** (GPT-4, GPT-4 Turbo) - via `openai` module
+- **Azure AI** - via `azure-ai` module
+- **Groq** - via `groq` module
+- **DeepSeek** - via `deepseek` module
+- **Ollama** (local models) - via `ollama` module
 
-#### Planned:
-- OpenAI (GPT-4, GPT-4 Turbo)
-- Google Gemini
-- Open-source models (Llama, Mistral via local servers)
-- Custom LLM endpoints
-
-For now, if you need other LLM providers, integrate via HTTP calls using `fetch()`:
+For custom LLM endpoints or providers not listed above, integrate via HTTP calls using `fetch()`:
 
 ```duso
 // Custom integration example
-result = fetch("https://api.openai.com/v1/chat/completions", {
+result = fetch("https://api.example.com/v1/chat/completions", {
   method = "POST",
-  headers = {["Authorization"] = "Bearer " + env("OPENAI_API_KEY")},
+  headers = {["Authorization"] = "Bearer " + env("API_KEY")},
   body = format_json({
-    model = "gpt-4",
+    model = "your-model",
     messages = [{role = "user", content = "Hello"}]
   })
 })
@@ -1307,7 +1308,7 @@ response = parse_json(result.body)
 print(response.choices[0].message.content)
 ```
 
-We're actively expanding the module ecosystem and LLM provider support with community contributions. If you'd like to contribute a module or suggest a provider, reach out!
+Community contributions for additional LLM providers are welcome! See [contrib/README.md](/contrib/README.md) for details.
 
 See [`require()`](/docs/reference/require.md) and [`include()`](/docs/reference/include.md) for details.
 

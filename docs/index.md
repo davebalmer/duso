@@ -2,6 +2,7 @@
 
 ## Getting Started
 
+- [Installing Duso](/docs/installing.md)
 - [Learning Duso](/docs/learning-duso.md)
 
 ## Guides
@@ -9,9 +10,7 @@
 - [Files and Modules](/docs/files-and-modules.md)
 - [Debugging Scripts](/docs/debugging-scripts.md)
 - [Virtual Filesystem](/docs/virtual-filesystem.md)
-- [Distribution](/docs/distribution.md)
-- [Custom Distributions](/docs/custom-distributions.md)
-- [Internals](/docs/internals.md)
+- [Bundling Applications](/docs/bundling-applications.md)
 
 ## Libraries
 

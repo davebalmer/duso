@@ -1177,15 +1177,8 @@ This applies everywhere in your code, regardless of scope.
 
 ### What's Reserved?
 
-**Keywords:** Control flow and language syntax
-```
-if, then, else, elseif, end, while, do, for, in, function, return, break, continue, try, catch, and, or, not, var, raw, true, false, nil, self
-```
-
-**Builtins:** Functions you can call without defining
-```
-print, input, env, deep_copy, parse_json, format_json, encode_base64, decode_base64, hash, hash_password, verify_password, sign_rsa, verify_rsa, rsa_from_jwk, sign_ec, verify_ec, ec_from_jwk, upper, lower, repeat, substr, trim, floor, ceil, round, abs, min, max, sqrt, pow, clamp, sin, cos, tan, asin, acos, atan, atan2, exp, log, ln, pi, random, now, timestamp, timer, format_time, parse_time, len, type, tonumber, tostring, tobool, parse, keys, values, push, pop, shift, unshift, split, join, range, map, filter, reduce, sort, contains, starts_with, ends_with, find, replace, template, markdown_html, markdown_ansi, markdown_text, exit, sleep, uuid, fetch, datastore, sql, throw, assert, breakpoint, watch, spawn, run, kill, context, http_server, parallel
-```
+- **Keywords** like `if`, `for`, `while`, `function`, `return`, `var`, `true`, `false`, `nil`
+- **Built-in functions** like `print`, `len`, `split`, `map`, `filter`, `fetch`, `now`, `format_json`, `parse_json`
 
 ### Examples of What's Forbidden
 

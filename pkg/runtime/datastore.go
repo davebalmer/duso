@@ -1126,6 +1126,45 @@ func (ds *DatastoreValue) Select(evaluator *Evaluator, predicateFn Value) ([]any
 	return results, nil
 }
 
+// Count returns the number of entries for which the predicate returns a truthy value.
+// Like Select but counts instead of collecting — avoids building/copying a result array.
+// Predicate receives (key, value); truthy returns are counted, falsy (nil/false/0/"") are not.
+func (ds *DatastoreValue) Count(evaluator *Evaluator, predicateFn Value) (float64, error) {
+	ds.dataMutex.RLock()
+	keys := make([]string, 0, len(ds.data))
+	for k := range ds.data {
+		keys = append(keys, k)
+	}
+	ds.dataMutex.RUnlock()
+
+	var count float64
+	for _, key := range keys {
+		ds.dataMutex.Lock()
+		val, exists := ds.data[key]
+		if !exists {
+			ds.dataMutex.Unlock()
+			continue
+		}
+		valCopy := DeepCopyAny(val)
+		ds.dataMutex.Unlock()
+
+		fnArgs := map[string]Value{
+			"0": NewString(key),
+			"1": InterfaceToValue(valCopy),
+		}
+		result, err := evaluator.CallFunction(predicateFn, fnArgs)
+		if err != nil {
+			return 0, fmt.Errorf("count() predicate error on key %q: %v", key, err)
+		}
+
+		if result.IsTruthy() {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // Shutdown stops the auto-save ticker and expiry ticker, and saves final state
 func (ds *DatastoreValue) Shutdown() error {
 	if ds.ticker != nil {

@@ -472,6 +472,9 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 		selectFn := NewGoFunction(func(selectEval *Evaluator, selectArgs map[string]any) (any, error) {
 			predicateFn, ok := selectArgs["0"]
 			if !ok {
+				predicateFn, ok = selectArgs["predicate"]
+			}
+			if !ok {
 				return nil, fmt.Errorf("select() requires a predicate function argument")
 			}
 			predicateVal := InterfaceToValue(predicateFn)
@@ -483,6 +486,22 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 				return nil, err
 			}
 			return results, nil
+		})
+
+		// Create count(predicate) method - count entries where predicate returns truthy
+		countFn := NewGoFunction(func(countEval *Evaluator, countArgs map[string]any) (any, error) {
+			predicateFn, ok := countArgs["0"]
+			if !ok {
+				predicateFn, ok = countArgs["predicate"]
+			}
+			if !ok {
+				return nil, fmt.Errorf("count() requires a predicate function argument")
+			}
+			predicateVal := InterfaceToValue(predicateFn)
+			if !predicateVal.IsFunction() {
+				return nil, fmt.Errorf("count() predicate must be a function")
+			}
+			return store.Count(countEval, predicateVal)
 		})
 
 		// Return store object with methods
@@ -507,6 +526,7 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			"rename":    renameFn,
 			"expire":    expireFn,
 			"select":    selectFn,
+			"count":     countFn,
 			"save":      saveFn,
 			"load":      loadFn,
 			"keys":      NewGoFunction(func(keysEval *Evaluator, keysArgs map[string]any) (any, error) { keys := store.Keys(); result := make([]any, len(keys)); for i, key := range keys { result[i] = key }; return result, nil }),

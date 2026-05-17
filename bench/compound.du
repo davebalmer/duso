@@ -2,12 +2,12 @@
 // This pattern: sum += var + const should be faster than sum = sum + var + const
 
 sum = 0
-start = now(true)
+start = timer()
 
 for i = 1, 100000 do
   sum += i + 5
 end
 
-elapsed = now(true) - start
+elapsed = (timer() - start) * 1000
 
 print("Compound assign (+=): " + sum + " in " + elapsed + "ms")

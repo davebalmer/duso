@@ -23,7 +23,7 @@ id = ctx.worker_id
 
 // Each worker does 1000 random reads
 for op = 1, 1000 do
-  key_num = random(1, 1001)
+  key_num = floor(random() * 1000) + 1
   key = "session_" + key_num
   val = cache.get(key)
 end
@@ -34,7 +34,7 @@ cache.increment("completed")
 print("Spawning 1000 workers doing random reads...")
 parsed_worker = parse(worker_code)
 
-start_time = now(true)
+start_time = timer()
 
 for id = 1, 1000 do
   spawn(parsed_worker, {worker_id = id})
@@ -44,9 +44,9 @@ end
 print("Workers doing 1,000,000 random reads total (1000 each)...")
 cache.wait("completed", 1000, 60)
 
-total_time = now(true) - start_time
+total_time_ms = (timer() - start_time) * 1000
 
 print("\n✓ Done!")
-print("  Total time: " + total_time + "ms")
-print("  Reads/sec: " + (1000000000 / total_time) + " reads/sec")
+print("  Total time: " + total_time_ms + "ms")
+print("  Reads/sec: " + (1000000 / (total_time_ms / 1000)) + " reads/sec")
 print("  Expected: 1,000,000 reads from 1000 keys")

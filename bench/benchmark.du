@@ -2,9 +2,9 @@
 // Run: duso benchmark.du
 
 function benchmark(name, fn)
-  var start = now()
+  var start = timer()
   result = fn()
-  elapsed = now() - start
+  elapsed = (timer() - start) * 1000
   print(name + ": " + elapsed + "ms")
   return result
 end

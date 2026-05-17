@@ -2,11 +2,11 @@
 ctx = context()
 if ctx == nil then
   // Just spawn 100 workers, measure total time
-  start = now()
+  start = timer()
   for i = 1, 100 do
     spawn("spawn_worker.du", {worker_id = i})
   end
-  elapsed = now() - start
+  elapsed = (timer() - start) * 1000
   print("Spawned 100 workers in " + elapsed + "ms")
   print("Per-spawn overhead: " + (elapsed / 100) + "ms")
   sleep(5)

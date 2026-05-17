@@ -8,21 +8,21 @@ print("=== Duso Spawn + Completion Benchmark ===")
 store = datastore("spawn_bench_job")
 store.set("completed", 0)
 
-start = now()
+start = timer()
 
 // Spawn 1000 workers
-spawn_start = now()
+spawn_start = timer()
 for i = 1, 1000 do
   spawn("spawn_worker.du", {job_id = "spawn_bench_job", worker_id = i})
 end
-spawn_time = now() - spawn_start
+spawn_time = (timer() - spawn_start) * 1000
 
 // Wait for all workers to complete
-wait_start = now()
+wait_start = timer()
 store.wait("completed", 1000)
-wait_time = now() - wait_start
+wait_time = (timer() - wait_start) * 1000
 
-total_time = now() - start
+total_time = (timer() - start) * 1000
 
 print("Spawn 1000 workers: " + spawn_time + "ms")
 print("Wait for completion: " + wait_time + "ms")

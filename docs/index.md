@@ -7,10 +7,11 @@
 
 ## Guides
 
+- [Performance Report vs. Node, Python, Ruby](/docs/performance-report.md)
+- [How to Bundle Applications](/docs/bundling-applications.md)
 - [Files and Modules](/docs/files-and-modules.md)
 - [Debugging Scripts](/docs/debugging-scripts.md)
 - [Virtual Filesystem](/docs/virtual-filesystem.md)
-- [Bundling Applications](/docs/bundling-applications.md)
 
 ## Libraries
 

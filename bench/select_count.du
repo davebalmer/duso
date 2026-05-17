@@ -1,0 +1,150 @@
+// Benchmark: datastore select() and count() against N user records
+// Run: duso bench/select_count.du
+// Edit N below to scale up/down
+
+N = 10000
+
+function bench(name, fn)
+  start = timer()
+  result = fn()
+  elapsed_ms = (timer() - start) * 1000
+  print(name + ": " + round(elapsed_ms * 1000) / 1000 + "ms" + (result == nil ? "" : " (result=" + result + ")"))
+  return result
+end
+
+// ---- data generation ----
+
+first_names = ["alice","bob","carol","dave","eve","frank","grace","heidi","ivan","judy","kevin","laura","mallory","niaj","olivia","peggy","quinn","rupert","sybil","trent","ulrich","victor","wendy","xena","yves","zara"]
+last_names  = ["adams","brown","clark","davis","evans","ford","garcia","hill","ito","jones","khan","lopez","martin","nguyen","ortiz","patel","quinn","rivera","smith","taylor","ueda","vega","wong","xu","young","zhao"]
+countries   = ["US","CA","GB","DE","FR","JP","BR","IN","AU","NL","SE","MX","ZA","KR","SG","IT","ES","PL","NO","AR"]
+statuses    = ["active","active","active","active","pending","inactive","banned"]  // weighted: ~57% active
+themes      = ["dark","light"]
+
+function pick(arr)
+  return arr[floor(random() * len(arr))]
+end
+
+function random_int(lo, hi)
+  return lo + floor(random() * (hi - lo + 1))
+end
+
+function make_user(i)
+  first = pick(first_names)
+  last  = pick(last_names)
+  signups_len = floor(random() * 11)  // 0-10
+  signups = []
+  for j = 1, signups_len do
+    push(signups, "src_" + random_int(1, 50))
+  end
+  return {
+    id = uuid(),
+    seq = i,
+    name = first + " " + last,
+    email = first + "." + last + random_int(1, 9999) + "@example.com",
+    age = random_int(18, 80),
+    country = pick(countries),
+    status = pick(statuses),
+    balance = floor(random() * 1000000) / 100,  // 0.00-9999.99
+    signups = signups,
+    settings = {
+      notifications = random() > 0.3,
+      theme = pick(themes)
+    },
+    created_at = random_int(1700000000, 1780000000)  // some unix time in past few years
+  }
+end
+
+// ---- setup ----
+
+print("=== datastore select/count benchmark, N=" + N + " ===")
+print("")
+
+store = datastore("bench_users_" + uuid())  // unique namespace so reruns don't collide
+
+// ---- insert phase ----
+
+bench("insert " + N + " users", function()
+  for i = 1, N do
+    u = make_user(i)
+    store.set(u.id, u)
+  end
+end)
+
+print("")
+print("--- count queries ---")
+
+c1 = bench("count active", function()
+  return store.count(function(k, v) return v.status == "active" end)
+end)
+
+c2 = bench("count balance > 5000", function()
+  return store.count(function(k, v) return v.balance > 5000 end)
+end)
+
+c3 = bench("count US users", function()
+  return store.count(predicate = function(k, v) return v.country == "US" end)
+end)
+
+c4 = bench("count notifications on", function()
+  return store.count(function(k, v) return v.settings.notifications end)
+end)
+
+c5 = bench("count with signups", function()
+  return store.count(function(k, v) return len(v.signups) > 0 end)
+end)
+
+c6 = bench("count age >= 65", function()
+  return store.count(function(k, v) return v.age >= 65 end)
+end)
+
+print("")
+print("--- select queries ---")
+
+s1 = bench("select banned (full records)", function()
+  return len(store.select(function(k, v) if v.status == "banned" then return v end end))
+end)
+
+s2 = bench("select emails balance > 9000", function()
+  return len(store.select(function(k, v) if v.balance > 9000 then return v.email end end))
+end)
+
+s3 = bench("select DE users (transform)", function()
+  return len(store.select(function(k, v)
+    if v.country == "DE" then
+      return {name = v.name, age = v.age}
+    end
+  end))
+end)
+
+print("")
+print("--- max= early-exit ---")
+
+bench("select banned, max=1 (~14% match, ~7 iters)", function()
+  return len(store.select(function(k, v) if v.status == "banned" then return v end end, max=1))
+end)
+
+bench("select status=banned, no max (full scan)", function()
+  return len(store.select(function(k, v) if v.status == "banned" then return v end end))
+end)
+
+bench("select seq==9999 (1-in-N, near worst case)", function()
+  return len(store.select(function(k, v) if v.seq == 9999 then return v end end, max=1))
+end)
+
+bench("select balance > 5000, max=10", function()
+  return len(store.select(function(k, v) if v.balance > 5000 then return v end end, max=10))
+end)
+
+print("")
+print("--- comparison: len(select) vs count ---")
+
+bench("count balance > 5000 (again)", function()
+  return store.count(function(k, v) return v.balance > 5000 end)
+end)
+
+bench("len(select balance > 5000)", function()
+  return len(store.select(function(k, v) if v.balance > 5000 then return v end end))
+end)
+
+print("")
+print("done.")

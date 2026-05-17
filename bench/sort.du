@@ -4,8 +4,8 @@ for i = 1, 10000 do
   push(arr, random() * 10000)
 end
 
-start = now(true)
+start = timer()
 sorted = sort(arr)
-elapsed = now(true) - start
+elapsed = (timer() - start) * 1000
 
 print("Sort 10k random numbers in " + elapsed + "ms")

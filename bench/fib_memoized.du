@@ -13,11 +13,11 @@ function fib_memo(n)
   return result
 end
 
-start = now(true)
+start = timer()
 for i = 1, 10000 do
   cache = {}
   result = fib_memo(30)
 end
-elapsed = now(true) - start
+elapsed = (timer() - start) * 1000
 
 print("fib(30) memoized x10000 = " + result + " in " + elapsed + "ms")

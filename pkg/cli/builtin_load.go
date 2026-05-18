@@ -12,7 +12,7 @@ import (
 //
 // load(filename) reads a file using centralized path resolution:
 // 1. Absolute paths and /STORE/, /EMBED/ → used as-is
-// 2. Relative paths → tries script dir, /STORE/, /EMBED/ in order
+// 2. Relative paths → tries cwd, script dir, /STORE/, /EMBED/ in order
 //
 // Example:
 //
@@ -45,8 +45,9 @@ func builtinLoad(evaluator *script.Evaluator, args map[string]any) (any, error) 
 		return string(content), nil
 	}
 
-	// For relative paths, try candidates in order: scriptDir, /STORE/, /EMBED/
+	// For relative paths, try candidates in order: cwd, scriptDir, /STORE/, /EMBED/
 	candidates := []string{
+		filename,
 		core.Join(scriptDir, filename),
 		core.Join("/STORE", filename),
 		core.Join("/EMBED", filename),
@@ -71,7 +72,7 @@ func builtinLoad(evaluator *script.Evaluator, args map[string]any) (any, error) 
 //
 // save(filename, content) writes content to a file using centralized path resolution:
 // 1. Absolute paths and /STORE/ → used as-is
-// 2. Relative paths → written to script dir
+// 2. Relative paths → written to current working directory
 //
 // Example:
 //
@@ -97,19 +98,12 @@ func builtinSave(evaluator *script.Evaluator, args map[string]any) (any, error) 
 		}
 	}
 
-	// Get script directory from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path: absolute/virtual as-is, else use scriptDir
+	// Resolve path: absolute/virtual as-is, else use current working directory
 	var fullPath string
 	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
 		fullPath = filename
 	} else {
-		fullPath = core.Join(scriptDir, filename)
+		fullPath = filename
 	}
 
 	// Write the file
@@ -124,7 +118,7 @@ func builtinSave(evaluator *script.Evaluator, args map[string]any) (any, error) 
 //
 // load_binary(filename) reads a file as binary data with the same path resolution as load():
 // 1. Absolute paths and /STORE/, /EMBED/ → used as-is
-// 2. Relative paths → tries script dir, /STORE/, /EMBED/ in order
+// 2. Relative paths → tries cwd, script dir, /STORE/, /EMBED/ in order
 //
 // Returns a binary value with metadata including the filename.
 //
@@ -161,8 +155,9 @@ func builtinLoadBinary(evaluator *script.Evaluator, args map[string]any) (any, e
 		return script.InterfaceToValue(bin), nil
 	}
 
-	// For relative paths, try candidates in order: scriptDir, /STORE/, /EMBED/
+	// For relative paths, try candidates in order: cwd, scriptDir, /STORE/, /EMBED/
 	candidates := []string{
+		filename,
 		core.Join(scriptDir, filename),
 		core.Join("/STORE", filename),
 		core.Join("/EMBED", filename),
@@ -190,7 +185,7 @@ func builtinLoadBinary(evaluator *script.Evaluator, args map[string]any) (any, e
 //
 // save_binary(binary, filename) writes a binary value to a file using centralized path resolution:
 // 1. Absolute paths and /STORE/ → used as-is
-// 2. Relative paths → written to script dir
+// 2. Relative paths → written to current working directory
 //
 // Example:
 //
@@ -236,19 +231,12 @@ func builtinSaveBinary(evaluator *script.Evaluator, args map[string]any) (any, e
 		return nil, fmt.Errorf("save_binary() requires filename argument")
 	}
 
-	// Get script directory from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path: absolute/virtual as-is, else use scriptDir
+	// Resolve path: absolute/virtual as-is, else use current working directory
 	var fullPath string
 	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
 		fullPath = filename
 	} else {
-		fullPath = core.Join(scriptDir, filename)
+		fullPath = filename
 	}
 
 	// Write the file

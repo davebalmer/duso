@@ -19,6 +19,7 @@ type Options struct {
 	Tasklists     bool
 	Smartquotes   bool
 	HeadingIDs    bool
+	CodeLanguage  bool
 }
 
 // DefaultOptions returns the defaults used by markdown_html() in duso.
@@ -29,6 +30,7 @@ func DefaultOptions() Options {
 		Tasklists:     true,
 		Smartquotes:   true,
 		HeadingIDs:    true,
+		CodeLanguage:  true,
 	}
 }
 

@@ -15,8 +15,8 @@ markdown_html(text, options)
   - `tables` (boolean) - Support markdown tables (default: true)
   - `strikethrough` (boolean) - Support strikethrough text (~~text~~) (default: true)
   - `tasklists` (boolean) - Support task lists (default: true)
-  - `footnotes` (boolean) - Support footnotes (default: false)
   - `smartquotes` (boolean) - Convert straight quotes to smart quotes (default: true)
+  - `code_language` (boolean) - Add language classes to code blocks (default: true)
 
 ## Returns
 
@@ -51,6 +51,18 @@ Disable extensions:
 ```duso
 md = "This is ~~strikethrough~~ text"
 html = markdown_html(md, {strikethrough = false})
+```
+
+Code blocks with language highlighting:
+
+```duso
+md = "```python\nprint('hello')\n```"
+html = markdown_html(md)
+// <pre><code class="language-python">print('hello')</code></pre>
+
+// Disable language classes if not needed:
+html = markdown_html(md, {code_language = false})
+// <pre><code>print('hello')</code></pre>
 ```
 
 ## See Also

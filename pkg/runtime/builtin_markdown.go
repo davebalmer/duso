@@ -28,6 +28,9 @@ func builtinMarkdownHTML(evaluator *Evaluator, args map[string]any) (any, error)
 		if v, ok := optArg["smartquotes"].(bool); ok {
 			opts.Smartquotes = v
 		}
+		if v, ok := optArg["code_language"].(bool); ok {
+			opts.CodeLanguage = v
+		}
 	}
 
 	return markdown.ToHTML(src, opts), nil

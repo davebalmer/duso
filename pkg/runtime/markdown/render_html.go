@@ -81,9 +81,10 @@ func (r *htmlRenderer) renderBlock(b *Block) {
 		r.b.WriteString(">\n")
 	case BlockCodeBlock:
 		r.b.WriteString("<pre><code")
-		if b.Lang != "" {
+		if b.Lang != "" && r.opts.CodeLanguage {
 			r.b.WriteString(` class="language-`)
-			escapeAttr(&r.b, b.Lang)
+			lang := normalizeLangName(b.Lang)
+			escapeAttr(&r.b, lang)
 			r.b.WriteString(`"`)
 		}
 		r.b.WriteByte('>')
@@ -384,5 +385,13 @@ func slugify(s string) string {
 	s = slugNonAlnum.ReplaceAllString(s, "")
 	s = slugDashRE.ReplaceAllString(s, "-")
 	return strings.Trim(s, "-")
+}
+
+// normalizeLangName converts a language name for use in HTML class attributes.
+// Replaces whitespace with single hyphens.
+var langWhitespaceRE = regexp.MustCompile(`\s+`)
+
+func normalizeLangName(lang string) string {
+	return langWhitespaceRE.ReplaceAllString(lang, "-")
 }
 

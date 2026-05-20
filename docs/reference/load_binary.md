@@ -22,14 +22,7 @@ Loads an entire file into memory as immutable binary data. This is useful for ha
 
 ## Path Resolution
 
-Path resolution follows the same rules as `load()`:
-- **Absolute paths** - Used as-is
-- **`/STORE/` paths** - Used as-is (persistent storage)
-- **`/EMBED/` paths** - Used as-is (embedded files)
-- **Relative paths** - Tried in this order:
-  1. Script directory
-  2. `/STORE/`
-  3. `/EMBED/`
+Same as [`load()`](/docs/reference/load.md). See [Files, Modules, and Paths](/docs/files-and-modules.md#path-roots) for the full table of path roots.
 
 ## Examples
 

@@ -17,16 +17,9 @@ import (
 	"github.com/duso-org/duso/pkg/script"
 )
 
-// FileIOContext holds context for file I/O operations (script directory, etc.)
-type FileIOContext struct {
-	ScriptDir string
-	// NoFiles flag is now read from sys datastore at check time
-}
-
-// checkFilesAllowed checks if file operations are allowed for the given path.
-// If NoFiles is enabled (from sys datastore), only /STORE/ and /EMBED/ paths are allowed.
-func (ctx *FileIOContext) checkFilesAllowed(path string) error {
-	// Read no-files flag from sys datastore
+// checkFilesAllowed enforces the -no-files sandbox. When enabled, only
+// /STORE/ and /EMBED/ paths are accepted; disk paths are rejected.
+func checkFilesAllowed(path string) error {
 	sysDs := runtime.GetDatastore("sys", nil)
 	noFilesVal, _ := sysDs.Get("-no-files")
 	noFiles := false
@@ -37,10 +30,9 @@ func (ctx *FileIOContext) checkFilesAllowed(path string) error {
 	}
 
 	if !noFiles {
-		return nil // Files are allowed
+		return nil
 	}
 
-	// NoFiles is enabled - only allow /STORE/ and /EMBED/
 	if core.HasPathPrefix(path, "STORE") || core.HasPathPrefix(path, "EMBED") {
 		return nil
 	}
@@ -48,12 +40,13 @@ func (ctx *FileIOContext) checkFilesAllowed(path string) error {
 	return fmt.Errorf("filesystem access disabled (use -no-files to enable)")
 }
 
-// ResolvePath resolves relative paths to scriptDir for file operations.
-func (ctx *FileIOContext) ResolvePath(filespec string) string {
-	if core.IsAbsolute(filespec) || strings.HasPrefix(filespec, "/") {
-		return filespec
+// appDir returns the entry-script's directory (or "" if unset). Used to
+// produce caller-friendly relative paths in list/copy/move return values.
+func appDir() string {
+	if globalInterpreter == nil {
+		return ""
 	}
-	return core.Join(ctx.ScriptDir, filespec)
+	return globalInterpreter.GetScriptDir()
 }
 
 // isDatastorePath checks if a path is a datastore path (/namespace/key format).
@@ -165,35 +158,20 @@ func builtinDoc(evaluator *script.Evaluator, args map[string]any) (any, error) {
 		return nil, nil
 }
 
-// builtinListDir lists directory contents, supporting /EMBED/ and /STORE/ paths.
+// builtinListDir lists directory contents. Path is resolved via ResolvePath
+// (bare → appDir; /HERE/, /CWD/, /EMBED/, /STORE/, absolute as documented).
 func builtinListDir(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("list_dir() requires a path argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path relative to scriptDir
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	// Use ListDirVFS to handle all filesystem types
-	entries, err := ListDirVFS(fullPath)
+	resolved := ResolvePath(path)
+	entries, err := ListDirVFS(resolved)
 	if err != nil {
-		return nil, fmt.Errorf("cannot list directory '%s': %w", path, err)
+		return nil, fmt.Errorf("cannot list directory '%s': %s", path, describeFileError(err, resolved))
 	}
 
-	// Convert to []any for Duso compatibility
 	result := make([]any, len(entries))
 	for i, entry := range entries {
 		result[i] = entry
@@ -201,45 +179,35 @@ func builtinListDir(evaluator *script.Evaluator, args map[string]any) (any, erro
 	return result, nil
 }
 
-// builtinListFiles lists files matching a wildcard pattern.
+// builtinListFiles lists files matching a wildcard pattern. Pattern is
+// resolved via ResolvePath; results from a bare pattern come back relative
+// to appDir so they round-trip cleanly into other file builtins.
 func builtinListFiles(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	pattern, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("list_files() requires a pattern argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve full pattern path
-	var fullPattern string
-	if core.IsAbsolute(pattern) || strings.HasPrefix(pattern, "/") {
-		fullPattern = pattern
-	} else {
-		fullPattern = core.Join(scriptDir, pattern)
-	}
-
-	// Expand glob pattern
-	matches, err := ExpandGlob(fullPattern)
+	resolved := ResolvePath(pattern)
+	matches, err := ExpandGlob(resolved)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to relative paths if input was relative
-	if !core.IsAbsolute(pattern) && !core.IsAbsoluteOrSpecial(pattern) {
-		for i, match := range matches {
-			rel, err := core.Rel(scriptDir, match)
-			if err == nil {
-				matches[i] = rel
+	// Bare input → re-relativize matches against appDir so callers see paths
+	// in the same shape they wrote. Explicit prefixes / absolute paths stay
+	// as-is so the result keeps the caller's intent visible.
+	if !core.IsAbsoluteOrSpecial(pattern) {
+		base := appDir()
+		if base != "" {
+			for i, match := range matches {
+				if rel, err := core.Rel(base, match); err == nil {
+					matches[i] = rel
+				}
 			}
 		}
 	}
 
-	// Convert to []any for Duso compatibility
 	result := make([]any, len(matches))
 	for i, path := range matches {
 		result[i] = path
@@ -247,76 +215,51 @@ func builtinListFiles(evaluator *script.Evaluator, args map[string]any) (any, er
 	return result, nil
 }
 
-// builtinMakeDir creates directories.
+// builtinMakeDir creates directories. Path is resolved via ResolvePath.
 func builtinMakeDir(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("make_dir() requires a path argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	if err := os.MkdirAll(fullPath, 0755); err != nil {
-		return nil, fmt.Errorf("cannot create directory '%s': %w", path, err)
+	resolved := ResolvePath(path)
+	if err := os.MkdirAll(resolved, 0755); err != nil {
+		return nil, fmt.Errorf("cannot create directory '%s': %s", path, describeFileError(err, resolved))
 	}
 	return nil, nil
 }
 
-// builtinRemoveFile deletes files matching a pattern.
+// builtinRemoveFile deletes files matching a pattern. Path is resolved via
+// ResolvePath; /EMBED/ is rejected (read-only).
 func builtinRemoveFile(evaluator *script.Evaluator, args map[string]any) (any, error) {
-	// Build FileIOContext for this call
-	fileCtx := FileIOContext{}
-	gid := script.GetGoroutineID()
-	if reqCtx, ok := script.GetRequestContext(gid); ok && reqCtx.Frame != nil && reqCtx.Frame.Filename != "" {
-		fileCtx.ScriptDir = core.Dir(reqCtx.Frame.Filename)
-	}
-
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("remove_file() requires a path argument")
 	}
 
-	// Resolve the full path using centralized resolution
-	fullPath := fileCtx.ResolvePath(path)
+	fullPath := ResolvePath(path)
 
-	// /EMBED/ is read-only - reject any remove attempts
 	if core.HasPathPrefix(fullPath, "EMBED") {
 		return nil, fmt.Errorf("cannot write to /EMBED/: embedded filesystem is read-only")
 	}
 
-	// Check for wildcards in the path
+	// Wildcard expansion: walk matches and skip silently on per-file errors.
 	if hasWildcard(fullPath) {
-		// Expand the pattern
 		matches, err := ExpandGlob(fullPath)
 		if err != nil {
 			return nil, err
 		}
 
-		// Cache the no-files flag before the loop to avoid repeated datastore lookups
 		noFiles := GetSysFlag("-no-files", false)
+		base := appDir()
+		bareInput := !core.IsAbsoluteOrSpecial(path)
 
-		// Remove each matched file
 		removed := []string{}
 		for _, match := range matches {
-			// Check if file operations are allowed
 			if noFiles && !core.HasPathPrefix(match, "STORE") && !core.HasPathPrefix(match, "EMBED") {
-				continue // Skip filesystem files if no-files is enabled
+				continue
 			}
 
-			// Try to remove the file
 			var removeErr error
 			if core.HasPathPrefix(match, "STORE") {
 				key := core.TrimPathPrefix(match, "STORE")
@@ -327,19 +270,16 @@ func builtinRemoveFile(evaluator *script.Evaluator, args map[string]any) (any, e
 			}
 
 			if removeErr == nil {
-				// Success: add to results (use relative path if possible)
 				resultPath := match
-				if !core.IsAbsolute(path) && !core.IsAbsoluteOrSpecial(path) {
-					if rel, err := core.Rel(fileCtx.ScriptDir, match); err == nil {
+				if bareInput && base != "" {
+					if rel, err := core.Rel(base, match); err == nil {
 						resultPath = rel
 					}
 				}
 				removed = append(removed, resultPath)
 			}
-			// Errors are silently skipped (per requirements)
 		}
 
-		// Convert to []any
 		result := make([]any, len(removed))
 		for i, p := range removed {
 			result[i] = p
@@ -347,58 +287,40 @@ func builtinRemoveFile(evaluator *script.Evaluator, args map[string]any) (any, e
 		return result, nil
 	}
 
-	// No wildcards: single file remove
-	// Check if file operations are allowed
-	if err := fileCtx.checkFilesAllowed(fullPath); err != nil {
+	if err := checkFilesAllowed(fullPath); err != nil {
 		return nil, err
 	}
 
-	// Handle /STORE/ paths differently
 	if core.HasPathPrefix(fullPath, "STORE") {
 		key := core.TrimPathPrefix(fullPath, "STORE")
 		store := runtime.GetDatastore("vfs", nil)
 		if _, err := store.Delete(key); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot remove file '%s': %s", path, describeFileError(err, fullPath))
 		}
 		return []any{path}, nil
 	}
 
-	// Regular filesystem remove
 	if err := os.Remove(fullPath); err != nil {
-		return nil, fmt.Errorf("cannot remove file '%s': %w", path, err)
+		return nil, fmt.Errorf("cannot remove file '%s': %s", path, describeFileError(err, fullPath))
 	}
 	return []any{path}, nil
 }
 
-// builtinRemoveDir removes empty directories.
+// builtinRemoveDir removes empty directories. Path is resolved via ResolvePath.
 func builtinRemoveDir(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("remove_dir() requires a path argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	if err := os.Remove(fullPath); err != nil {
-		return nil, fmt.Errorf("cannot remove directory '%s': %w", path, err)
+	resolved := ResolvePath(path)
+	if err := os.Remove(resolved); err != nil {
+		return nil, fmt.Errorf("cannot remove directory '%s': %s", path, describeFileError(err, resolved))
 	}
 	return nil, nil
 }
 
-// builtinRenameFile renames a file.
+// builtinRenameFile renames a file. Both paths resolved via ResolvePath.
 func builtinRenameFile(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	oldPath, ok := args["0"].(string)
 	if !ok {
@@ -410,55 +332,26 @@ func builtinRenameFile(evaluator *script.Evaluator, args map[string]any) (any, e
 		return nil, fmt.Errorf("rename_file() requires two path arguments")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve paths
-	resolvePath := func(p string) string {
-		if core.IsAbsolute(p) || strings.HasPrefix(p, "/") {
-			return p
-		}
-		return core.Join(scriptDir, p)
-	}
-
-	oldFull := resolvePath(oldPath)
-	newFull := resolvePath(newPath)
+	oldFull := ResolvePath(oldPath)
+	newFull := ResolvePath(newPath)
 
 	if err := os.Rename(oldFull, newFull); err != nil {
-		return nil, fmt.Errorf("cannot rename '%s' to '%s': %w", oldPath, newPath, err)
+		return nil, fmt.Errorf("cannot rename '%s' to '%s': %s", oldPath, newPath, describeFileError(err, oldFull))
 	}
 	return nil, nil
 }
 
-// builtinFileType returns file type.
+// builtinFileType returns file type. Path is resolved via ResolvePath.
 func builtinFileType(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("file_type() requires a path argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	info, err := os.Stat(fullPath)
+	resolved := ResolvePath(path)
+	info, err := os.Stat(resolved)
 	if err != nil {
-		return nil, fmt.Errorf("cannot stat '%s': %w", path, err)
+		return nil, fmt.Errorf("cannot stat '%s': %s", path, describeFileError(err, resolved))
 	}
 
 	if info.IsDir() {
@@ -467,29 +360,14 @@ func builtinFileType(evaluator *script.Evaluator, args map[string]any) (any, err
 	return "file", nil
 }
 
-// builtinFileExists checks if a file exists.
+// builtinFileExists checks if a file exists. Path is resolved via ResolvePath.
 func builtinFileExists(evaluator *script.Evaluator, args map[string]any) (any, error) {
 	path, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("file_exists() requires a path argument")
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
-	}
-
-	// Resolve path
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	return fileExists(fullPath), nil
+	return fileExists(ResolvePath(path)), nil
 }
 
 // builtinCurrentDir returns the working directory.
@@ -517,48 +395,31 @@ func builtinAppendFile(evaluator *script.Evaluator, args map[string]any) (any, e
 		}
 	}
 
-	// Get scriptDir from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
+	resolved := ResolvePath(path)
+
+	if core.HasPathPrefix(resolved, "STORE") {
+		if err := appendToStore(resolved, []byte(content)); err != nil {
+			return nil, fmt.Errorf("cannot append to '%s': %s", path, describeFileError(err, resolved))
+		}
+		return nil, nil
 	}
 
-	// Resolve path
-	var fullPath string
-	if core.IsAbsolute(path) || strings.HasPrefix(path, "/") {
-		fullPath = path
-	} else {
-		fullPath = core.Join(scriptDir, path)
-	}
-
-	// Handle /STORE/ paths differently
-	if core.HasPathPrefix(fullPath, "STORE") {
-		return nil, appendToStore(fullPath, []byte(content))
-	}
-
-	// Regular filesystem append
-	file, err := os.OpenFile(fullPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(resolved, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open '%s': %w", path, err)
+		return nil, fmt.Errorf("cannot open '%s': %s", path, describeFileError(err, resolved))
 	}
 	defer file.Close()
 
 	if _, err := file.WriteString(content); err != nil {
-		return nil, fmt.Errorf("cannot append to '%s': %w", path, err)
+		return nil, fmt.Errorf("cannot append to '%s': %s", path, describeFileError(err, resolved))
 	}
 	return nil, nil
 }
 
-// builtinCopyFile copies a file from source to destination.
+// builtinCopyFile copies a file from source to destination. Both paths are
+// resolved via ResolvePath; wildcard sources require an existing directory
+// destination.
 func builtinCopyFile(evaluator *script.Evaluator, args map[string]any) (any, error) {
-	// Build FileIOContext for this call
-	fileCtx := FileIOContext{}
-	gid := script.GetGoroutineID()
-	if reqCtx, ok := script.GetRequestContext(gid); ok && reqCtx.Frame != nil && reqCtx.Frame.Filename != "" {
-		fileCtx.ScriptDir = core.Dir(reqCtx.Frame.Filename)
-	}
-
 	src, ok := args["0"].(string)
 	if !ok {
 		return nil, fmt.Errorf("copy_file() requires source and destination arguments")
@@ -569,197 +430,159 @@ func builtinCopyFile(evaluator *script.Evaluator, args map[string]any) (any, err
 		return nil, fmt.Errorf("copy_file() requires source and destination arguments")
 	}
 
-	// Resolve paths
-	fullSrc := fileCtx.ResolvePath(src)
-	fullDst := fileCtx.ResolvePath(dst)
+	fullSrc := ResolvePath(src)
+	fullDst := ResolvePath(dst)
 
-		// Check for wildcards in source
-		if hasWildcard(fullSrc) {
-			// For wildcard operations, destination MUST be a directory
-			// Special handling for /STORE/ (always valid) and /EMBED/ (read-only)
-			if !core.HasPathPrefix(fullDst, "STORE") && !core.HasPathPrefix(fullDst, "EMBED") {
-				info, err := os.Stat(fullDst)
-				if err != nil || !info.IsDir() {
-					return nil, fmt.Errorf("copy_file() with wildcard source requires destination to be an existing directory")
-				}
-			}
-
-			// Expand the source pattern
-			matches, err := ExpandGlob(fullSrc)
-			if err != nil {
-				return nil, err
-			}
-
-			// Cache the no-files flag before the loop to avoid repeated datastore lookups
-			noFiles := GetSysFlag("-no-files", false)
-
-			// Copy each matched file
-			copied := []string{}
-			for _, match := range matches {
-				// Read source file
-				content, err := readFile(match)
-				if err != nil {
-					continue // Skip on read error
-				}
-
-				// Determine destination filename
-				basename := core.Base(match)
-				dstPath := core.Join(fullDst, basename)
-
-				// Check if file operations are allowed
-				if noFiles && !core.HasPathPrefix(dstPath, "STORE") && !core.HasPathPrefix(dstPath, "EMBED") {
-					continue // Skip on permission error
-				}
-
-				// Write destination file
-				if err := writeFile(dstPath, content, 0644); err == nil {
-					// Success: add to results (use relative path if possible)
-					resultPath := dstPath
-					if !core.IsAbsolute(dst) && !core.IsAbsoluteOrSpecial(dst) {
-						if rel, err := core.Rel(fileCtx.ScriptDir, dstPath); err == nil {
-							resultPath = rel
-						}
-					}
-					copied = append(copied, resultPath)
-				}
-				// Errors are silently skipped (per requirements)
-			}
-
-			// Convert to []any
-			result := make([]any, len(copied))
-			for i, p := range copied {
-				result[i] = p
-			}
-			return result, nil
-		}
-
-		// No wildcards: single file copy
-		// TODO: Re-enable file permission check when refactored
-		// if err := fileCtx.checkFilesAllowed(fullDst); err != nil {
-		// 	return nil, err
-		// }
-
-		// Support reading from /EMBED/ and /STORE/
-		content, err := readFile(fullSrc)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read '%s': %w", src, err)
-		}
-
-		// If destination is a directory, append the source filename
-		finalDst := fullDst
-		if !core.HasPathPrefix(fullDst, "STORE") && !core.HasPathPrefix(fullDst, "EMBED") {
-			if info, err := os.Stat(fullDst); err == nil && info.IsDir() {
-				finalDst = core.Join(fullDst, core.Base(fullSrc))
-			}
-		}
-
-		// Create parent directories (not needed for /STORE/)
-		if !core.HasPathPrefix(finalDst, "STORE") && !core.HasPathPrefix(finalDst, "EMBED") {
-			if err := os.MkdirAll(core.Dir(finalDst), 0755); err != nil {
-				return nil, fmt.Errorf("cannot create directory: %w", err)
-			}
-		}
-
-		if err := writeFile(finalDst, content, 0644); err != nil {
-			return nil, fmt.Errorf("cannot write to '%s': %w", dst, err)
-		}
-		return []any{dst}, nil
-}
-
-// builtinMoveFile moves a file from source to destination.
-func builtinMoveFile(evaluator *script.Evaluator, args map[string]any) (any, error) {
-	// Build FileIOContext for this call
-	fileCtx := FileIOContext{}
-	gid := script.GetGoroutineID()
-	if reqCtx, ok := script.GetRequestContext(gid); ok && reqCtx.Frame != nil && reqCtx.Frame.Filename != "" {
-		fileCtx.ScriptDir = core.Dir(reqCtx.Frame.Filename)
-	}
-
-	src, ok := args["0"].(string)
-	if !ok {
-		return nil, fmt.Errorf("move_file() requires source and destination arguments")
-	}
-
-	dst, ok := args["1"].(string)
-	if !ok {
-		return nil, fmt.Errorf("move_file() requires source and destination arguments")
-	}
-
-	// Resolve paths
-	fullSrc := fileCtx.ResolvePath(src)
-	fullDst := fileCtx.ResolvePath(dst)
-
-	// /EMBED/ is read-only - reject any move attempts
-	if core.HasPathPrefix(fullSrc, "EMBED") {
-		return nil, fmt.Errorf("cannot write to /EMBED/: embedded filesystem is read-only")
-	}
-
-	// Check for wildcards in source
 	if hasWildcard(fullSrc) {
-		// For wildcard operations, destination MUST be a directory
-		info, err := os.Stat(fullDst)
-		if err != nil || !info.IsDir() {
-			return nil, fmt.Errorf("move_file() with wildcard source requires destination to be an existing directory")
+		if !core.HasPathPrefix(fullDst, "STORE") && !core.HasPathPrefix(fullDst, "EMBED") {
+			info, err := os.Stat(fullDst)
+			if err != nil || !info.IsDir() {
+				return nil, fmt.Errorf("copy_file() with wildcard source requires destination to be an existing directory")
+			}
 		}
 
-		// Expand the source pattern
 		matches, err := ExpandGlob(fullSrc)
 		if err != nil {
 			return nil, err
 		}
 
-		// Cache the no-files flag before the loop to avoid repeated datastore lookups
 		noFiles := GetSysFlag("-no-files", false)
+		base := appDir()
+		bareDst := !core.IsAbsoluteOrSpecial(dst)
 
-		// Move each matched file
-		moved := []string{}
+		copied := []string{}
 		for _, match := range matches {
-			// Determine destination filename
+			content, err := readFile(match)
+			if err != nil {
+				continue
+			}
+
 			basename := core.Base(match)
 			dstPath := core.Join(fullDst, basename)
 
-			// Check if file operations are allowed
 			if noFiles && !core.HasPathPrefix(dstPath, "STORE") && !core.HasPathPrefix(dstPath, "EMBED") {
-				continue // Skip if no-files is enabled and destination is a filesystem path
+				continue
 			}
 
-			// Move the file (for /STORE/, this is copy+delete)
+			if err := writeFile(dstPath, content, 0644); err == nil {
+				resultPath := dstPath
+				if bareDst && base != "" {
+					if rel, err := core.Rel(base, dstPath); err == nil {
+						resultPath = rel
+					}
+				}
+				copied = append(copied, resultPath)
+			}
+		}
+
+		result := make([]any, len(copied))
+		for i, p := range copied {
+			result[i] = p
+		}
+		return result, nil
+	}
+
+	if err := checkFilesAllowed(fullDst); err != nil {
+		return nil, err
+	}
+
+	content, err := readFile(fullSrc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot copy_file '%s': %s", src, describeFileError(err, fullSrc))
+	}
+
+	finalDst := fullDst
+	if !core.HasPathPrefix(fullDst, "STORE") && !core.HasPathPrefix(fullDst, "EMBED") {
+		if info, err := os.Stat(fullDst); err == nil && info.IsDir() {
+			finalDst = core.Join(fullDst, core.Base(fullSrc))
+		}
+	}
+
+	if !core.HasPathPrefix(finalDst, "STORE") && !core.HasPathPrefix(finalDst, "EMBED") {
+		if err := os.MkdirAll(core.Dir(finalDst), 0755); err != nil {
+			return nil, fmt.Errorf("cannot copy_file '%s' to '%s': %s", src, dst, describeFileError(err, finalDst))
+		}
+	}
+
+	if err := writeFile(finalDst, content, 0644); err != nil {
+		return nil, fmt.Errorf("cannot copy_file '%s' to '%s': %s", src, dst, describeFileError(err, finalDst))
+	}
+	return []any{dst}, nil
+}
+
+// builtinMoveFile moves a file from source to destination. Both paths are
+// resolved via ResolvePath; /EMBED/ source is rejected.
+func builtinMoveFile(evaluator *script.Evaluator, args map[string]any) (any, error) {
+	src, ok := args["0"].(string)
+	if !ok {
+		return nil, fmt.Errorf("move_file() requires source and destination arguments")
+	}
+
+	dst, ok := args["1"].(string)
+	if !ok {
+		return nil, fmt.Errorf("move_file() requires source and destination arguments")
+	}
+
+	fullSrc := ResolvePath(src)
+	fullDst := ResolvePath(dst)
+
+	if core.HasPathPrefix(fullSrc, "EMBED") {
+		return nil, fmt.Errorf("cannot write to /EMBED/: embedded filesystem is read-only")
+	}
+
+	if hasWildcard(fullSrc) {
+		info, err := os.Stat(fullDst)
+		if err != nil || !info.IsDir() {
+			return nil, fmt.Errorf("move_file() with wildcard source requires destination to be an existing directory")
+		}
+
+		matches, err := ExpandGlob(fullSrc)
+		if err != nil {
+			return nil, err
+		}
+
+		noFiles := GetSysFlag("-no-files", false)
+		base := appDir()
+		bareDst := !core.IsAbsoluteOrSpecial(dst)
+
+		moved := []string{}
+		for _, match := range matches {
+			basename := core.Base(match)
+			dstPath := core.Join(fullDst, basename)
+
+			if noFiles && !core.HasPathPrefix(dstPath, "STORE") && !core.HasPathPrefix(dstPath, "EMBED") {
+				continue
+			}
+
 			var moveErr error
 			if core.HasPathPrefix(match, "STORE") {
-				// Read from /STORE/
 				content, err := readFile(match)
 				if err != nil {
-					continue // Skip on read error
+					continue
 				}
 
-				// Write to destination
 				if err := writeFile(dstPath, content, 0644); err != nil {
-					continue // Skip on write error
+					continue
 				}
 
-				// Delete from /STORE/
 				srcKey := core.TrimPathPrefix(match, "STORE")
 				store := runtime.GetDatastore("vfs", nil)
 				_, moveErr = store.Delete(srcKey)
 			} else {
-				// Regular filesystem move
 				moveErr = os.Rename(match, dstPath)
 			}
 
 			if moveErr == nil {
-				// Success: add to results (use relative path if possible)
 				resultPath := dstPath
-				if !core.IsAbsolute(dst) && !core.IsAbsoluteOrSpecial(dst) {
-					if rel, err := core.Rel(fileCtx.ScriptDir, dstPath); err == nil {
+				if bareDst && base != "" {
+					if rel, err := core.Rel(base, dstPath); err == nil {
 						resultPath = rel
 					}
 				}
 				moved = append(moved, resultPath)
 			}
-			// Errors are silently skipped (per requirements)
 		}
 
-		// Convert to []any
 		result := make([]any, len(moved))
 		for i, p := range moved {
 			result[i] = p
@@ -767,44 +590,36 @@ func builtinMoveFile(evaluator *script.Evaluator, args map[string]any) (any, err
 		return result, nil
 	}
 
-	// No wildcards: single file move
-	// Check if file operations are allowed
-	if err := fileCtx.checkFilesAllowed(fullDst); err != nil {
+	if err := checkFilesAllowed(fullDst); err != nil {
 		return nil, err
 	}
 
-	// If destination is a directory, append the source filename
 	finalDst := fullDst
 	if info, err := os.Stat(fullDst); err == nil && info.IsDir() {
 		finalDst = core.Join(fullDst, core.Base(fullSrc))
 	}
 
-	// Handle /STORE/ source paths differently (copy from store, write to dest, delete from store)
 	if core.HasPathPrefix(fullSrc, "STORE") {
-		// Read from /STORE/
 		content, err := readFile(fullSrc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read '%s': %w", src, err)
+			return nil, fmt.Errorf("cannot move_file '%s': %s", src, describeFileError(err, fullSrc))
 		}
 
-		// Write to destination
 		if err := writeFile(finalDst, content, 0644); err != nil {
-			return nil, fmt.Errorf("cannot write to '%s': %w", dst, err)
+			return nil, fmt.Errorf("cannot move_file '%s' to '%s': %s", src, dst, describeFileError(err, finalDst))
 		}
 
-		// Delete from /STORE/
 		srcKey := core.TrimPathPrefix(fullSrc, "STORE")
 		store := runtime.GetDatastore("vfs", nil)
 		if _, err := store.Delete(srcKey); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot move_file '%s': %s", src, describeFileError(err, fullSrc))
 		}
 
 		return []any{dst}, nil
 	}
 
-	// Regular filesystem move
 	if err := os.Rename(fullSrc, finalDst); err != nil {
-		return nil, fmt.Errorf("cannot move '%s' to '%s': %w", src, dst, err)
+		return nil, fmt.Errorf("cannot move_file '%s' to '%s': %s", src, dst, describeFileError(err, finalDst))
 	}
 	return []any{dst}, nil
 }

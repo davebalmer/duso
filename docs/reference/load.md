@@ -43,17 +43,12 @@ combined = file1 + file2
 
 ## Path Resolution
 
-Files are resolved relative to the directory containing the script:
+Bare paths resolve against the entry script's directory (appDir); explicit prefixes (`/HERE/`, `/CWD/`, `/EMBED/`, `/STORE/`) and absolute paths use those roots directly. See [Files, Modules, and Paths](/docs/files-and-modules.md#path-roots) for the full table.
 
-```bash
-# Directory structure:
-# project/
-#   ├── script.du
-#   └── data/
-#       └── input.txt
-
-# In script.du:
-content = load("data/input.txt")  // Relative to script.du directory
+```duso
+content = load("data/input.txt")    // appDir/data/input.txt
+local   = load("/HERE/sibling.txt") // next to the current .du file
+log     = load("/CWD/app.log")      // the process's working directory
 ```
 
 ## Working with Structured Data
@@ -79,6 +74,7 @@ end
 
 ## See Also
 
+- [Files, Modules, and Paths](/docs/files-and-modules.md) - Path roots, file operations overview
 - [save() - Write files](/docs/reference/save.md)
 - [include() - Execute scripts](/docs/reference/include.md)
 - [parse_json() - Parse JSON strings](/docs/reference/parse_json.md)

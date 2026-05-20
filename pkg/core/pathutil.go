@@ -15,9 +15,17 @@ func IsAbsolute(p string) bool {
 	return strings.HasPrefix(p, "/")
 }
 
-// IsSpecial reports whether the path starts with a special prefix like /EMBED/ or /STORE/.
+// IsSpecial reports whether the path starts with a special prefix like
+// /EMBED/, /STORE/, /HERE/, or /CWD/.
+//   - /EMBED/ — embedded read-only filesystem
+//   - /STORE/ — datastore-backed virtual filesystem
+//   - /HERE/  — directory of the currently executing script frame
+//   - /CWD/   — process working directory
 func IsSpecial(p string) bool {
-	return strings.HasPrefix(p, "/EMBED/") || strings.HasPrefix(p, "/STORE/")
+	return strings.HasPrefix(p, "/EMBED/") ||
+		strings.HasPrefix(p, "/STORE/") ||
+		strings.HasPrefix(p, "/HERE/") ||
+		strings.HasPrefix(p, "/CWD/")
 }
 
 // IsAbsoluteOrSpecial reports whether the path is absolute or starts with a special prefix.

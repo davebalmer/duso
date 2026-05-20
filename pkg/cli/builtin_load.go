@@ -2,17 +2,17 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/duso-org/duso/pkg/core"
 	"github.com/duso-org/duso/pkg/script"
 )
 
 // builtinLoad reads a file and returns its contents as a string.
 //
-// load(filename) reads a file using centralized path resolution:
-// 1. Absolute paths and /STORE/, /EMBED/ → used as-is
-// 2. Relative paths → tries cwd, script dir, /STORE/, /EMBED/ in order
+// load(filename) resolves the path via ResolvePath:
+//   - bare paths → appDir (entry script's directory)
+//   - /HERE/...  → directory of the calling script
+//   - /CWD/...   → process working directory
+//   - /EMBED/..., /STORE/..., absolute paths → as-is
 //
 // Example:
 //
@@ -29,50 +29,22 @@ func builtinLoad(evaluator *script.Evaluator, args map[string]any) (any, error) 
 		}
 	}
 
-	// Get script directory from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
+	resolved := ResolvePath(filename)
+	content, err := readFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load '%s': %s", filename, describeFileError(err, resolved))
 	}
-
-	// For absolute/virtual paths, use as-is
-	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
-		content, err := readFile(filename)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load '%s': %w", filename, err)
-		}
-		return string(content), nil
-	}
-
-	// For relative paths, try candidates in order: cwd, scriptDir, /STORE/, /EMBED/
-	candidates := []string{
-		filename,
-		core.Join(scriptDir, filename),
-		core.Join("/STORE", filename),
-		core.Join("/EMBED", filename),
-	}
-
-	var lastErr error
-	for _, candidate := range candidates {
-		content, err := readFile(candidate)
-		if err == nil {
-			return string(content), nil
-		}
-		lastErr = err
-	}
-
-	if lastErr != nil {
-		return nil, fmt.Errorf("cannot load '%s': %w", filename, lastErr)
-	}
-	return nil, fmt.Errorf("cannot load '%s': file not found", filename)
+	return string(content), nil
 }
 
 // builtinSave writes a string to a file.
 //
-// save(filename, content) writes content to a file using centralized path resolution:
-// 1. Absolute paths and /STORE/ → used as-is
-// 2. Relative paths → written to current working directory
+// save(filename, content) resolves the path via ResolvePath:
+//   - bare paths → appDir (entry script's directory)
+//   - /HERE/...  → directory of the calling script
+//   - /CWD/...   → process working directory
+//   - /EMBED/... → rejected (read-only)
+//   - /STORE/..., absolute paths → as-is
 //
 // Example:
 //
@@ -98,17 +70,9 @@ func builtinSave(evaluator *script.Evaluator, args map[string]any) (any, error) 
 		}
 	}
 
-	// Resolve path: absolute/virtual as-is, else use current working directory
-	var fullPath string
-	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
-		fullPath = filename
-	} else {
-		fullPath = filename
-	}
-
-	// Write the file
-	if err := writeFile(fullPath, []byte(content), 0644); err != nil {
-		return nil, fmt.Errorf("cannot save to '%s': %w", filename, err)
+	resolved := ResolvePath(filename)
+	if err := writeFile(resolved, []byte(content), 0644); err != nil {
+		return nil, fmt.Errorf("cannot save '%s': %s", filename, describeFileError(err, resolved))
 	}
 
 	return nil, nil
@@ -116,11 +80,8 @@ func builtinSave(evaluator *script.Evaluator, args map[string]any) (any, error) 
 
 // builtinLoadBinary reads a binary file and returns a binary Value.
 //
-// load_binary(filename) reads a file as binary data with the same path resolution as load():
-// 1. Absolute paths and /STORE/, /EMBED/ → used as-is
-// 2. Relative paths → tries cwd, script dir, /STORE/, /EMBED/ in order
-//
-// Returns a binary value with metadata including the filename.
+// load_binary(filename) uses the same resolution as load(); returns a binary
+// value with metadata including the filename.
 //
 // Example:
 //
@@ -136,56 +97,20 @@ func builtinLoadBinary(evaluator *script.Evaluator, args map[string]any) (any, e
 		}
 	}
 
-	// Get script directory from request context
-	scriptDir := ""
-	gid := script.GetGoroutineID()
-	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
-		scriptDir = core.Dir(ctx.Frame.Filename)
+	resolved := ResolvePath(filename)
+	content, err := readFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load_binary '%s': %s", filename, describeFileError(err, resolved))
 	}
-
-	// For absolute/virtual paths, use as-is
-	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
-		content, err := readFile(filename)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load_binary '%s': %w", filename, err)
-		}
-		bin := script.NewBinary(content)
-		binVal := bin.AsBinary()
-		binVal.Metadata["filename"] = script.NewString(filename)
-		return script.InterfaceToValue(bin), nil
-	}
-
-	// For relative paths, try candidates in order: cwd, scriptDir, /STORE/, /EMBED/
-	candidates := []string{
-		filename,
-		core.Join(scriptDir, filename),
-		core.Join("/STORE", filename),
-		core.Join("/EMBED", filename),
-	}
-
-	var lastErr error
-	for _, candidate := range candidates {
-		content, err := readFile(candidate)
-		if err == nil {
-			bin := script.NewBinary(content)
-			binVal := bin.AsBinary()
-			binVal.Metadata["filename"] = script.NewString(filename)
-			return script.InterfaceToValue(bin), nil
-		}
-		lastErr = err
-	}
-
-	if lastErr != nil {
-		return nil, fmt.Errorf("cannot load_binary '%s': %w", filename, lastErr)
-	}
-	return nil, fmt.Errorf("cannot load_binary '%s': file not found", filename)
+	bin := script.NewBinary(content)
+	binVal := bin.AsBinary()
+	binVal.Metadata["filename"] = script.NewString(filename)
+	return script.InterfaceToValue(bin), nil
 }
 
 // builtinSaveBinary writes binary data to a file.
 //
-// save_binary(binary, filename) writes a binary value to a file using centralized path resolution:
-// 1. Absolute paths and /STORE/ → used as-is
-// 2. Relative paths → written to current working directory
+// save_binary(binary, filename) uses the same resolution as save().
 //
 // Example:
 //
@@ -231,17 +156,9 @@ func builtinSaveBinary(evaluator *script.Evaluator, args map[string]any) (any, e
 		return nil, fmt.Errorf("save_binary() requires filename argument")
 	}
 
-	// Resolve path: absolute/virtual as-is, else use current working directory
-	var fullPath string
-	if core.IsAbsolute(filename) || strings.HasPrefix(filename, "/") {
-		fullPath = filename
-	} else {
-		fullPath = filename
-	}
-
-	// Write the file
-	if err := writeFile(fullPath, *binary.Data, 0644); err != nil {
-		return nil, fmt.Errorf("cannot save_binary to '%s': %w", filename, err)
+	resolved := ResolvePath(filename)
+	if err := writeFile(resolved, *binary.Data, 0644); err != nil {
+		return nil, fmt.Errorf("cannot save_binary '%s': %s", filename, describeFileError(err, resolved))
 	}
 
 	return nil, nil

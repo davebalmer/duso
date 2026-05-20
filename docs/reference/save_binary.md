@@ -23,9 +23,7 @@ Writes binary data to a file. This is useful for saving images, archives, and ot
 
 ## Path Resolution
 
-- **Absolute paths** - Used as-is
-- **`/STORE/` paths** - Used as-is (persistent storage)
-- **Relative paths** - Written to the script directory
+Same as [`save()`](/docs/reference/save.md). See [Files, Modules, and Paths](/docs/files-and-modules.md#path-roots) for the full table of path roots.
 
 ## Examples
 

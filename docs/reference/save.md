@@ -10,7 +10,7 @@ save(filename, content)
 
 ## Parameters
 
-- `filename` (string) - Path to write to, relative to script directory
+- `filename` (string) - Path to write to. See [Files, Modules, and Paths](/docs/files-and-modules.md#path-roots) for how paths are resolved.
 - `content` (string) - Content to write
 
 ## Returns
@@ -47,5 +47,6 @@ save("output.txt", processed)
 
 ## See Also
 
+- [Files, Modules, and Paths](/docs/files-and-modules.md) - Path roots, file operations overview
 - [load() - Read file](/docs/reference/load.md)
 - [format_json() - Convert to JSON](/docs/reference/format_json.md)

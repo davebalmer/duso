@@ -1,8 +1,29 @@
-# File I/O Operations
+# Files, Modules, and Paths
 
-Read, write, and include files with Duso CLI.
+Read, write, list, and include files in Duso scripts.
 
-> **Virtual Filesystems:** This guide covers standard file I/O. For information about the `/EMBED/` (embedded files) and `/STORE/` (virtual filesystem) prefixes, see the [Virtual Filesystems Guide](/docs/virtual-filesystem.md).
+## Path Roots
+
+Every path argument to a file builtin (`load`, `save`, `list_files`, `copy_file`, etc.) is resolved against exactly one root, picked from the prefix you use. No fallback chains, no surprises.
+
+| Form              | Resolves to                                                | When evaluated   |
+| ----------------- | ---------------------------------------------------------- | ---------------- |
+| `foo.txt`         | **appDir** — directory of the entry script (or cwd if none) | startup, frozen  |
+| `/HERE/foo.txt`   | directory of the currently executing script file           | per call         |
+| `/CWD/foo.txt`    | the process working directory at the moment of the call    | per call         |
+| `/EMBED/foo.txt`  | embedded read-only filesystem (built into the binary)      | fixed            |
+| `/STORE/foo.txt`  | datastore-backed virtual filesystem ([details](/docs/virtual-filesystem.md)) | fixed |
+| `/Users/...`      | absolute disk path, used as-is                             | fixed            |
+
+**appDir is the default.** Use bare relative paths for app resources (templates, configs, bundled assets) — they survive being bundled into a single binary, because appDir switches from a disk directory in dev to `/EMBED/yourapp/` in the bundled build with no code change.
+
+**`/HERE/` is for module-local resources.** If a contrib or stdlib module needs to load a file that ships alongside its own `.du` file, use `/HERE/`. Keeps the module portable regardless of who calls it.
+
+**`/CWD/` is for user-dir interaction.** Use it when a server needs to write uploads to the operator's filesystem, or when a CLI tool wants to operate on the directory the user invoked it from.
+
+**No fallback search.** A bare path resolves to appDir, period. It does not also try cwd or `/EMBED/`. If you need to look in more than one place, write the prefix explicitly.
+
+Module resolution (`require`, `include`) uses its own search path — see [require](/docs/reference/require.md).
 
 ## load(filename)
 
@@ -14,7 +35,7 @@ print(content)
 ```
 
 **Parameters:**
-- `filename` (string) - Path to file (relative to script's directory)
+- `filename` (string) - Path resolved per [Path Roots](#path-roots).
 
 **Returns:**
 - `string` - File contents
@@ -38,12 +59,6 @@ for line in lines do
     print(fields[0])
 end
 ```
-
-**Paths:**
-- Relative paths are relative to the script's directory
-- `./file.txt` - Current directory
-- `../file.txt` - Parent directory
-- `data/file.txt` - Subdirectory
 
 ---
 
@@ -115,7 +130,7 @@ save("output.txt", "Hello, World!")
 ```
 
 **Parameters:**
-- `filename` (string) - Path to file
+- `filename` (string) - Path resolved per [Path Roots](#path-roots).
 - `content` (string) - Content to write
 
 **Returns:**
@@ -145,10 +160,7 @@ save("report.txt", report)
 print("Report saved")
 ```
 
-**Paths:**
-- Paths are relative to script's directory
-- Creates parent directories if needed (on most systems)
-- Overwrites existing files
+`save()` overwrites existing files and (on most platforms) creates parent directories as needed. Writing to `/EMBED/` is rejected — the embedded filesystem is read-only.
 
 ---
 
@@ -164,7 +176,7 @@ end
 ```
 
 **Parameters:**
-- `pattern` (string) - Wildcard pattern to match files (relative to script's directory)
+- `pattern` (string) - Wildcard pattern. Resolved per [Path Roots](#path-roots); a bare pattern returns matches relative to appDir, an explicit-prefix pattern returns the matched paths in the same shape.
 
 **Returns:**
 - `array` - File paths matching the pattern

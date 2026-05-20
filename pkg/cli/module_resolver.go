@@ -25,10 +25,14 @@ func (r *ModuleResolver) ResolveModule(moduleName string) (string, []string, err
 	var searchedPaths []string
 
 	// Build search path list in the correct order:
-	// 1. Current directory (.)
+	// 1. appDir — entry script's directory (falls back to "." when unset)
 	// 2. DUSO_LIB directories (from environment variable, in order)
 	// 3. Embedded modules (stdlib, then contrib)
-	searchPaths := []string{"."}
+	base := r.ScriptDir
+	if base == "" {
+		base = "."
+	}
+	searchPaths := []string{base}
 	searchPaths = append(searchPaths, r.DusoPath...)
 	searchPaths = append(searchPaths, "/EMBED/stdlib")
 	searchPaths = append(searchPaths, "/EMBED/contrib")

@@ -3,14 +3,102 @@ package cli
 import (
 	"bufio"
 	"embed"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/duso-org/duso/pkg/core"
 	"github.com/duso-org/duso/pkg/runtime"
+	"github.com/duso-org/duso/pkg/script"
 )
+
+// describeFileError returns a short, dev-facing cause for a file I/O error.
+// resolved is the path the resolver produced (post-/HERE/, post-appDir join);
+// including it tells the caller exactly where the runtime looked, which is
+// essential when bare paths resolve through appDir.
+func describeFileError(err error, resolved string) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Sprintf("file not found at %s", resolved)
+	case errors.Is(err, fs.ErrPermission):
+		return fmt.Sprintf("permission denied at %s", resolved)
+	case errors.Is(err, fs.ErrExist):
+		return fmt.Sprintf("already exists at %s", resolved)
+	default:
+		return fmt.Sprintf("%s (at %s)", err.Error(), resolved)
+	}
+}
+
+// ResolvePath turns a user-supplied path into its concrete form for the
+// underlying file I/O routines. Resolution rules:
+//
+//	/EMBED/...	passed through (embedded read-only filesystem)
+//	/STORE/...	passed through (datastore-backed VFS)
+//	/HERE/...	rewritten to dir(currentFrame.Filename) + rest
+//	/CWD/...	rewritten to os.Getwd() + rest
+//	/...		absolute disk path, returned as-is
+//	bare path	joined onto the entry-script's appDir
+//
+// /HERE/ falls back to cwd when there is no current frame (REPL / -c).
+// Bare paths fall back to cwd when no appDir was set.
+func ResolvePath(p string) string {
+	// Virtual filesystems pass through; downstream readFile/writeFile know them.
+	if core.HasPathPrefix(p, "EMBED") || core.HasPathPrefix(p, "STORE") {
+		return p
+	}
+
+	// /HERE/ → current script frame's directory.
+	if core.HasPathPrefix(p, "HERE") {
+		rest := core.TrimPathPrefix(p, "HERE")
+		base := currentFrameDir()
+		if base == "" {
+			if wd, err := os.Getwd(); err == nil {
+				base = wd
+			}
+		}
+		return core.Join(base, rest)
+	}
+
+	// /CWD/ → process working directory.
+	if core.HasPathPrefix(p, "CWD") {
+		rest := core.TrimPathPrefix(p, "CWD")
+		wd, err := os.Getwd()
+		if err != nil {
+			return rest
+		}
+		return core.Join(wd, rest)
+	}
+
+	// Absolute disk paths are returned untouched.
+	if core.IsAbsolute(p) {
+		return p
+	}
+
+	// Bare relative → appDir (entry script's directory, frozen at startup).
+	appDir := ""
+	if globalInterpreter != nil {
+		appDir = globalInterpreter.GetScriptDir()
+	}
+	if appDir == "" || appDir == "." {
+		return p
+	}
+	return core.Join(appDir, p)
+}
+
+// currentFrameDir returns the directory of the file the executing frame
+// belongs to, or "" if no frame information is available.
+func currentFrameDir() string {
+	gid := script.GetGoroutineID()
+	if ctx, ok := script.GetRequestContext(gid); ok && ctx.Frame != nil && ctx.Frame.Filename != "" {
+		return core.Dir(ctx.Frame.Filename)
+	}
+	return ""
+}
 
 // embeddedFS holds the embedded stdlib and docs directories
 // Initialized by SetEmbeddedFS() from cmd/duso/main.go
@@ -161,12 +249,12 @@ func readFromStore(path string) ([]byte, error) {
 	// Get the value from datastore
 	value, err := store.Get(key)
 	if err != nil {
-		return nil, fmt.Errorf("file not found in /STORE/: %s", key)
+		return nil, fmt.Errorf("/STORE/%s: %w", key, fs.ErrNotExist)
 	}
 
 	// Convert value to bytes
 	if value == nil {
-		return nil, fmt.Errorf("file not found in /STORE/: %s", key)
+		return nil, fmt.Errorf("/STORE/%s: %w", key, fs.ErrNotExist)
 	}
 
 	str, ok := value.(string)

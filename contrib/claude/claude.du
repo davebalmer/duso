@@ -198,7 +198,7 @@ function execute_tools_loop(session, response, max_iterations)
         try
           result = handler(tool_use.input)
         catch (e)
-          result = "Error executing tool: " + format(e)
+          result = "Error executing tool: " + e
           err = true
         end
       else

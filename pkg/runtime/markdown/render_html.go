@@ -80,11 +80,20 @@ func (r *htmlRenderer) renderBlock(b *Block) {
 		r.b.WriteString(tag)
 		r.b.WriteString(">\n")
 	case BlockCodeBlock:
-		r.b.WriteString("<pre><code")
+		var lang, lineHL string
 		if b.Lang != "" && r.opts.CodeLanguage {
+			lang, lineHL = splitLangLineHL(b.Lang)
+		}
+		r.b.WriteString("<pre")
+		if lineHL != "" {
+			r.b.WriteString(` data-line="`)
+			escapeAttr(&r.b, lineHL)
+			r.b.WriteString(`"`)
+		}
+		r.b.WriteString("><code")
+		if lang != "" {
 			r.b.WriteString(` class="language-`)
-			lang := normalizeLangName(b.Lang)
-			escapeAttr(&r.b, lang)
+			escapeAttr(&r.b, normalizeLangName(lang))
 			r.b.WriteString(`"`)
 		}
 		r.b.WriteByte('>')
@@ -393,5 +402,30 @@ var langWhitespaceRE = regexp.MustCompile(`\s+`)
 
 func normalizeLangName(lang string) string {
 	return langWhitespaceRE.ReplaceAllString(lang, "-")
+}
+
+// langTokenRE captures the language token: leading non-whitespace, non-bracket
+// characters. Allows "python", "python[1,3-5]" (lang only), or "" (no lang).
+var langTokenRE = regexp.MustCompile(`^([^\s\[]+)`)
+
+// lineHLRE captures the contents of an optional [1, 3-5] line-highlight
+// suffix anywhere in the info string. Digits, commas, dashes, and internal
+// whitespace are allowed inside the brackets.
+var lineHLRE = regexp.MustCompile(`\[([0-9,\-\s]+)\]`)
+
+// lineHLWS strips whitespace from the line-highlight value so the emitted
+// attribute is canonical regardless of input formatting.
+var lineHLWS = regexp.MustCompile(`\s+`)
+
+func splitLangLineHL(info string) (string, string) {
+	lang := ""
+	if m := langTokenRE.FindStringSubmatch(info); m != nil {
+		lang = m[1]
+	}
+	lineHL := ""
+	if m := lineHLRE.FindStringSubmatch(info); m != nil {
+		lineHL = lineHLWS.ReplaceAllString(m[1], "")
+	}
+	return lang, lineHL
 }
 

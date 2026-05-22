@@ -982,10 +982,8 @@ func parseFenceOpen(s string) (byte, int, string) {
 		n++
 	}
 	info := strings.TrimSpace(s[n:])
-	// Language is the first whitespace-delimited token; remainder is ignored.
-	if space := strings.IndexAny(info, " \t"); space >= 0 {
-		info = info[:space]
-	}
+	// Full info string is passed through; the HTML renderer extracts the
+	// language token and optional [1, 3-5] line-highlight suffix via regex.
 	info = unescapeASCIIPunct(info)
 	info = decodeEntities(info)
 	return ch, n, info

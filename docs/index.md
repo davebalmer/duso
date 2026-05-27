@@ -29,6 +29,7 @@
 - [groq](/contrib/groq/groq.md) Groq ultra-fast inference API
 - [ollama](/contrib/ollama/ollama.md) Local LLMs through Ollama's OpenAI-compatible API
 - [openai](/contrib/openai/openai.md) OpenAI API with options-based interface
+- [phospher](/contrib/phospher/phospher.md) Phospher Icons SVG inline icon fetcher
 - [stripe](/contrib/stripe/stripe.md) Stripe payment processing API
 - [svgraph](/contrib/svgraph/svgraph.md) SVG chart and graph generation
 - [zlm](/contrib/zlm/zlm.md) "Zero Language Model" for testing LLM-scale scenarios without burning tokens

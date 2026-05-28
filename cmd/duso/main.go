@@ -6,6 +6,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -931,13 +932,24 @@ func main() {
 	lspStdio := flag.Bool("lsp", false, "Start LSP server on stdio")
 	lspTCP := flag.String("lsp-tcp", "", "Start LSP server on TCP port (e.g., -lsp-tcp 9999)")
 	doInstall := flag.Bool("install", false, "Install duso binary to system PATH")
-	flag.Parse()
+
+	// Allow unknown flags to pass through to scripts
+	flag.CommandLine.Init(flag.CommandLine.Name(), flag.ContinueOnError)
+	flag.CommandLine.SetOutput(io.Discard)  // Suppress flag error messages
+	_ = flag.CommandLine.Parse(os.Args[1:]) // Ignore parse errors, unknown flags available via sys("args")
 
 	// Store all command-line flags in the sys datastore for access by scripts
 	storeAllCliFlags()
 
-	// Store version in sys datastore for access by scripts
+	// Store raw command-line arguments for access by scripts (convert to Duso array)
 	sysDs := dusoruntime.GetDatastore("sys", nil)
+	dusoArgs := make([]interface{}, len(os.Args)-1)
+	for i, arg := range os.Args[1:] {
+		dusoArgs[i] = arg
+	}
+	sysDs.Set("args", dusoArgs)
+
+	// Store version in sys datastore for access by scripts
 	sysDs.Set("version", Version)
 
 	// Register all builtin functions in the global registry

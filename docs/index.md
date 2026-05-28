@@ -159,6 +159,12 @@
 - [`current_dir()`](/docs/reference/current_dir.md) Get current working directory
 - [`watch(path, timeout)`](/docs/reference/watch.md) Monitor file or directory for changes
 
+### Image Processing
+
+- [`scale_image(image, max_x, max_y, mode)`](/docs/reference/scale_image.md) Scale image with fit/fill/stretch modes
+- [`crop_image(image, x, y, width, height)`](/docs/reference/crop_image.md) Extract rectangular region from image
+- [`convert_image(image, format)`](/docs/reference/convert_image.md) Convert between PNG, JPEG, and GIF formats
+
 ### Network & HTTP
 
 - [`fetch(url, options)`](/docs/reference/fetch.md) Make HTTP requests (JavaScript-style fetch API)

@@ -10,6 +10,7 @@ A `binary` value represents immutable binary data (raw bytes) loaded from files 
 
 - **Load files** - [load_binary()](/docs/reference/load_binary.md)
 - **Save files** - [save_binary()](/docs/reference/save_binary.md)
+- **Image processing** - [scale_image()](/docs/reference/scale_image.md), [crop_image()](/docs/reference/crop_image.md), [convert_image()](/docs/reference/convert_image.md)
 - **Text encoding** - [encode_base64()](/docs/reference/encode_base64.md) and [decode_base64()](/docs/reference/decode_base64.md)
 
 ## Common Operations

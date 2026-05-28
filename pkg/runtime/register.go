@@ -166,6 +166,11 @@ func RegisterBuiltins() {
 	// Parallel execution
 	RegisterBuiltin("parallel", builtinParallel)
 
+	// Image operations
+	RegisterBuiltin("scale_image", builtinScaleImage)
+	RegisterBuiltin("crop_image", builtinCropImage)
+	RegisterBuiltin("convert_image", builtinConvertImage)
+
 	// Initialize I/O queueing support (for I/O routing in spawned processes)
 	initIOQueueing()
 }

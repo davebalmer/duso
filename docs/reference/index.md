@@ -202,7 +202,13 @@ All trigonometric functions work with angles in radians. Use `pi()` for π.
 - `file_exists(path)` check if file or directory exists
 - `file_type(path)` get file type ("file" or "directory")
 - `current_dir()` get current working directory
-- `watch(path [, timeout])` monitor file or directory for changes
+- `watch(path [, timeout])` monitor file/directory for changes
+
+## Image Processing
+
+- `scale_image(img, max_x, max_y, mode)` scale w/ fit/fill/stretch modes
+- `crop_image(img, x, y, width, height)` extract rect. region
+- `convert_image(img, format)` convert PNG/JPEG/GIF
 
 ## Date & Time
 

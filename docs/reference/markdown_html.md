@@ -14,6 +14,7 @@ markdown_html(text, options)
 - `options` (object, optional) - Enable/disable markdown extensions:
   - `tables` (boolean) - Support markdown tables (default: true)
   - `strikethrough` (boolean) - Support strikethrough text (~~text~~) (default: true)
+  - `highlight` (boolean) - Support highlighted text (==text==) (default: false)
   - `tasklists` (boolean) - Support task lists (default: true)
   - `smartquotes` (boolean) - Convert straight quotes to smart quotes (default: true)
   - `code_language` (boolean) - Add language classes to code blocks (default: true)
@@ -44,6 +45,20 @@ markdown = """
 
 html = markdown_html(markdown, {tables = true})
 print(html)
+```
+
+Highlight text:
+
+```duso
+md = "This is ==highlighted== text"
+
+// Enable highlighting:
+html = markdown_html(md, {highlight = true})
+// <p>This is <mark>highlighted</mark> text</p>
+
+// Without enabling, == is treated as literal:
+html = markdown_html(md)
+// <p>This is ==highlighted== text</p>
 ```
 
 Disable extensions:

@@ -81,6 +81,7 @@ const (
 	InlineImage
 	InlineAutolink
 	InlineRawHTML
+	InlineHighlight
 )
 
 // Inline is a single inline node. Containers (Emphasis, Strong, Strike,

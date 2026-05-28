@@ -230,6 +230,10 @@ func (r *htmlRenderer) renderInline(n *Inline) {
 		r.b.WriteString("<del>")
 		r.renderInlines(n.Children)
 		r.b.WriteString("</del>")
+	case InlineHighlight:
+		r.b.WriteString("<mark>")
+		r.renderInlines(n.Children)
+		r.b.WriteString("</mark>")
 	case InlineCode:
 		r.b.WriteString("<code>")
 		escapeHTML(&r.b, n.Text)
@@ -278,7 +282,7 @@ func collectAltText(b *strings.Builder, nodes []*Inline) {
 			b.WriteString(n.Text)
 		case InlineSoftBreak, InlineHardBreak:
 			b.WriteByte(' ')
-		case InlineEmphasis, InlineStrong, InlineStrike, InlineLink, InlineImage:
+		case InlineEmphasis, InlineStrong, InlineStrike, InlineHighlight, InlineLink, InlineImage:
 			collectAltText(b, n.Children)
 		}
 	}
@@ -372,7 +376,7 @@ func isAlnum(c byte) bool {
 
 // stripInlineSyntax removes inline markdown syntax characters from a heading
 // text, used as input to slugify(). It's intentionally simple.
-var stripSyntaxRE = regexp.MustCompile(`[*_` + "`" + `~]`)
+var stripSyntaxRE = regexp.MustCompile(`[*_` + "`" + `~=]`)
 
 func stripInlineSyntax(s string) string {
 	return stripSyntaxRE.ReplaceAllString(s, "")

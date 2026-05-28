@@ -22,6 +22,9 @@ func builtinMarkdownHTML(evaluator *Evaluator, args map[string]any) (any, error)
 		if v, ok := optArg["strikethrough"].(bool); ok {
 			opts.Strikethrough = v
 		}
+		if v, ok := optArg["highlight"].(bool); ok {
+			opts.Highlight = v
+		}
 		if v, ok := optArg["tasklists"].(bool); ok {
 			opts.Tasklists = v
 		}
@@ -80,6 +83,8 @@ func applyThemeMap(theme *markdown.Theme, m map[string]any) {
 	set(&theme.ListItem, "list_item")
 	set(&theme.Bold, "bold")
 	set(&theme.Italic, "italic")
+	set(&theme.Strike, "strike")
+	set(&theme.Highlight, "highlight")
 	set(&theme.Link, "link")
 	set(&theme.HR, "hr")
 	set(&theme.Reset, "reset")

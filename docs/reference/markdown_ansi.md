@@ -19,6 +19,8 @@ markdown_ansi(text, theme)
   - `list_item` (string) - List item prefix
   - `bold` (string) - Bold text style
   - `italic` (string) - Italic text style
+  - `strike` (string) - Strikethrough text style
+  - `highlight` (string) - Highlighted text style
   - `link` (string) - Link style
   - `hr` (string) - Horizontal rule
   - `reset` (string) - Reset styling

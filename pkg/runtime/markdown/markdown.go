@@ -16,6 +16,7 @@ package markdown
 type Options struct {
 	Tables        bool
 	Strikethrough bool
+	Highlight     bool
 	Tasklists     bool
 	Smartquotes   bool
 	HeadingIDs    bool
@@ -27,6 +28,7 @@ func DefaultOptions() Options {
 	return Options{
 		Tables:        true,
 		Strikethrough: true,
+		Highlight:     false,
 		Tasklists:     true,
 		Smartquotes:   true,
 		HeadingIDs:    true,
@@ -45,6 +47,7 @@ type Theme struct {
 	Bold                   string
 	Italic                 string
 	Strike                 string
+	Highlight              string
 	Link                   string
 	HR                     string
 	Reset                  string
@@ -66,6 +69,7 @@ func DefaultTheme() *Theme {
 		Bold:       "\033[1m",
 		Italic:     "\033[3m",
 		Strike:     "\033[9m",
+		Highlight:  "\033[43m\033[30m",
 		Link:       "\033[34m\033[1m\033[4m",
 		HR:         "\033[90m",
 		Reset:      "\033[0m",

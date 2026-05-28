@@ -205,6 +205,10 @@ func (r *ansiRenderer) renderInline(n *Inline) {
 		r.b.WriteString(r.theme.Strike)
 		r.renderInlines(n.Children)
 		r.b.WriteString(r.theme.Reset)
+	case InlineHighlight:
+		r.b.WriteString(r.theme.Highlight)
+		r.renderInlines(n.Children)
+		r.b.WriteString(r.theme.Reset)
 	case InlineCode:
 		r.b.WriteString(r.theme.CodeInline)
 		r.b.WriteString(n.Text)

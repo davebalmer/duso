@@ -162,6 +162,12 @@ func (p *inlineParser) parse() {
 			} else {
 				p.handleText(1)
 			}
+		case '=':
+			if p.opts.Highlight {
+				p.handleHighlightDelim()
+			} else {
+				p.handleText(1)
+			}
 		case '[':
 			p.handleOpenBracket()
 		case ']':
@@ -373,6 +379,41 @@ func (p *inlineParser) handleStrikeDelim() {
 	p.pushDelim(node)
 }
 
+func (p *inlineParser) handleHighlightDelim() {
+	ch := byte('=')
+	start := p.pos
+	for p.pos < len(p.src) && p.src[p.pos] == ch {
+		p.pos++
+	}
+	n := p.pos - start
+	if n < 1 || n > 2 {
+		// Treat as literal text.
+		p.appendText(p.src[start:p.pos])
+		return
+	}
+	prev := byte(' ')
+	if start > 0 {
+		prev = p.src[start-1]
+	}
+	next := byte(' ')
+	if p.pos < len(p.src) {
+		next = p.src[p.pos]
+	}
+	canOpen, canClose := classifyDelim(ch, prev, next)
+	node := &inode{
+		kind:      InlineText,
+		text:      p.src[start:p.pos],
+		isDelim:   true,
+		delimCh:   ch,
+		delimN:    n,
+		origCount: n,
+		canOpen:   canOpen,
+		canClose:  canClose,
+	}
+	p.append(node)
+	p.pushDelim(node)
+}
+
 // classifyDelim implements CM's left-flanking / right-flanking rules.
 func classifyDelim(ch, prev, next byte) (bool, bool) {
 	prevR, _ := utf8.DecodeLastRuneInString(string(prev))
@@ -386,7 +427,7 @@ func classifyDelim(ch, prev, next byte) (bool, bool) {
 	rightFlanking := !prevWS && (!prevPunct || nextWS || nextPunct)
 
 	switch ch {
-	case '*', '~':
+	case '*', '~', '=':
 		return leftFlanking, rightFlanking
 	case '_':
 		// `_` cannot open inside a word, cannot close inside a word.
@@ -416,9 +457,9 @@ func (p *inlineParser) processEmphasis(stackBottom *inode) {
 			closer = closer.dnext
 			continue
 		}
-		// For strikethrough only count == 2 is valid.
+		// For strikethrough and highlight, only count == 2 is valid.
 		ch := closer.delimCh
-		if ch == '~' && closer.origCount != 2 {
+		if (ch == '~' || ch == '=') && closer.origCount != 2 {
 			closer = closer.dnext
 			continue
 		}
@@ -459,14 +500,14 @@ func (p *inlineParser) processEmphasis(stackBottom *inode) {
 		}
 		// Pair! Determine emphasis vs strong.
 		strong := false
-		if ch != '~' && match.delimN >= 2 && closer.delimN >= 2 {
+		if ch != '~' && ch != '=' && match.delimN >= 2 && closer.delimN >= 2 {
 			strong = true
 		}
 		use := 1
 		if strong {
 			use = 2
 		}
-		if ch == '~' {
+		if ch == '~' || ch == '=' {
 			use = 2
 		}
 		// Build node wrapping content between match and closer.
@@ -476,6 +517,9 @@ func (p *inlineParser) processEmphasis(stackBottom *inode) {
 		}
 		if ch == '~' {
 			emph.kind = InlineStrike
+		}
+		if ch == '=' {
+			emph.kind = InlineHighlight
 		}
 		// Move siblings (match.next .. closer.prev) into emph.first..last.
 		first := match.next

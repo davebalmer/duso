@@ -136,7 +136,10 @@ func (e *Evaluator) GetWatchCache() map[string]Value {
 // ParseExpression parses a string expression into an AST node
 func (e *Evaluator) ParseExpression(exprStr string) (Node, error) {
 	lexer := NewLexer(exprStr)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, err
+	}
 	parser := NewParser(tokens)
 	return parser.parseExpression()
 }
@@ -1493,6 +1496,17 @@ func (e *Evaluator) evalPropertyAccess(expr *PropertyAccess) (Value, error) {
 		return NewNil(), nil
 	}
 
+	// Handle binary values
+	if obj.IsBinary() {
+		bin := obj.AsBinary()
+		if bin != nil && bin.Metadata != nil {
+			if val, ok := bin.Metadata[expr.Property]; ok {
+				return val, nil
+			}
+		}
+		return NewNil(), nil
+	}
+
 	if obj.IsObject() {
 		objMap := obj.AsObject()
 		if val, ok := objMap[expr.Property]; ok {
@@ -1780,7 +1794,10 @@ func (e *Evaluator) EvalTemplateLiteral(template string) (string, error) {
 
 		// Parse and evaluate the expression
 		lexer := NewLexer(exprStr)
-		tokens := lexer.Tokenize()
+		tokens, err := lexer.Tokenize()
+		if err != nil {
+			return "", fmt.Errorf("template expression error: %w", err)
+		}
 		parser := NewParser(tokens)
 		exprNode, err := parser.parseExpression()
 		if err != nil {

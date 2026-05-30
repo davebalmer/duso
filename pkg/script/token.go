@@ -7,6 +7,7 @@ type TokenType int
 const (
 	// Special
 	TOK_EOF TokenType = iota
+	TOK_ERROR
 	TOK_COMMENT
 
 	// Literals
@@ -76,6 +77,7 @@ const (
 
 var tokenNames = map[TokenType]string{
 	TOK_EOF:          "EOF",
+	TOK_ERROR:        "ERROR",
 	TOK_COMMENT:      "COMMENT",
 	TOK_NUMBER:       "NUMBER",
 	TOK_STRING:       "STRING",

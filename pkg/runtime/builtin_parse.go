@@ -45,7 +45,11 @@ func builtinParse(evaluator *script.Evaluator, args map[string]any) (any, error)
 
 	// Parse — catch error, return as error value (never throw)
 	lexer := script.NewLexer(source)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		errVal := script.NewErrorValue(script.NewString(err.Error()), err.Error())
+		return errVal, nil  // return error value, don't throw
+	}
 	parser := script.NewParser(tokens)  // no file path — dynamic code
 	program, err := parser.Parse()
 	if err != nil {

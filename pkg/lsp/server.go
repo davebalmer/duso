@@ -315,7 +315,16 @@ func (s *Server) parseAndCache(doc *Document) []*Diagnostic {
 
 	// Parse the document
 	lexer := script.NewLexer(doc.Text)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		// Add FilePath to the error so it's properly formatted
+		if dusoErr, ok := err.(*script.DusoError); ok {
+			dusoErr.FilePath = URIToString(doc.URI)
+		}
+		diagnostics := []*Diagnostic{ConvertDusoError(err, doc.URI)}
+		s.cache.Set(doc.URI, doc.Version, nil, diagnostics)
+		return diagnostics
+	}
 	parser := script.NewParserWithFile(tokens, URIToString(doc.URI))
 
 	ast, err := parser.Parse()

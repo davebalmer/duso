@@ -204,7 +204,11 @@ func isExpressionStatement(program *script.Program) script.Node {
 func wrapExpressionWithPrint(code string) string {
 	// Try to parse the code
 	lexer := script.NewLexer(code)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		// If tokenization fails, return original code
+		return code
+	}
 
 	parser := script.NewParser(tokens)
 	program, err := parser.Parse()
@@ -1431,7 +1435,11 @@ func main() {
 	if *debug {
 		// Debug mode: parse and execute statement-by-statement
 		lexer := script.NewLexer(string(source))
-		tokens := lexer.Tokenize()
+		tokens, err := lexer.Tokenize()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 
 		parser := script.NewParserWithFile(tokens, scriptPath)
 		program, parseErr := parser.Parse()

@@ -1141,7 +1141,11 @@ func (p *Parser) ParseTemplateString(template string, pos Position) (Node, error
 		// Extract and parse expression (raw, no unescaping for expressions)
 		exprStr := template[exprStart : exprStart+end]
 		exprLexer := NewLexer(exprStr)
-		exprTokens := exprLexer.Tokenize()
+		exprTokens, err := exprLexer.Tokenize()
+		if err != nil {
+			pos := Position{Line: 1, Column: exprStart}
+			return nil, p.parseError(fmt.Sprintf("error in template expression: %v", err), pos)
+		}
 		exprParser := NewParser(exprTokens)
 		expr, err := exprParser.parseExpression()
 		if err != nil {

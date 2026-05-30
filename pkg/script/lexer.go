@@ -15,6 +15,7 @@
 package script
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -512,12 +513,18 @@ func (l *Lexer) NextToken() Token {
 			value := l.readNumber()
 			return Token{Type: TOK_NUMBER, Value: value, Line: line, Column: column}
 		}
+		// Return error token for unrecognized characters
+		if l.ch != 0 {
+			errMsg := fmt.Sprintf("unexpected character '%c' (U+%04X)", l.ch, l.ch)
+			l.readChar()
+			return Token{Type: TOK_ERROR, Value: errMsg, Line: line, Column: column}
+		}
 		l.readChar()
 		return Token{Type: TOK_EOF, Value: "", Line: line, Column: column}
 	}
 }
 
-func (l *Lexer) Tokenize() []Token {
+func (l *Lexer) Tokenize() ([]Token, error) {
 	var tokens []Token
 	for {
 		tok := l.NextToken()
@@ -525,8 +532,15 @@ func (l *Lexer) Tokenize() []Token {
 		if tok.Type == TOK_EOF {
 			break
 		}
+		// Check if we have a token with an error message (unrecognized character)
+		if tok.Type == TOK_ERROR {
+			return nil, &DusoError{
+				Message:  tok.Value,
+				Position: Position{Line: tok.Line, Column: tok.Column},
+			}
+		}
 	}
-	return tokens
+	return tokens, nil
 }
 
 // UnescapeString processes escape sequences in a string, preserving UTF-8

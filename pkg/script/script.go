@@ -158,7 +158,10 @@ func (i *Interpreter) Execute(source string) (string, error) {
 
 	// Tokenize
 	lexer := NewLexer(source)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return "", err
+	}
 
 	// Parse
 	filePath := i.GetFilePath()
@@ -215,7 +218,10 @@ func (i *Interpreter) EvalInContext(source string) (string, error) {
 
 	// Tokenize
 	lexer := NewLexer(source)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return "", err
+	}
 
 	// Parse
 	parser := NewParserWithFile(tokens, i.GetFilePath())
@@ -244,7 +250,10 @@ func (i *Interpreter) EvalInEnvironment(source string, env *Environment) (string
 
 	// Tokenize
 	lexer := NewLexer(source)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return "", err
+	}
 
 	// Parse
 	parser := NewParserWithFile(tokens, i.GetFilePath())
@@ -364,7 +373,10 @@ func (i *Interpreter) ExecuteModule(source string) (Value, error) {
 
 	// Tokenize
 	lexer := NewLexer(source)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return NewNil(), err
+	}
 
 	// Parse
 	parser := NewParser(tokens)
@@ -438,7 +450,10 @@ func (i *Interpreter) ParseScriptFile(path string, readFile func(string) ([]byte
 
 	// Tokenize
 	lexer := NewLexer(string(source))
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse
 	parser := NewParser(tokens)
@@ -500,7 +515,10 @@ func (i *Interpreter) ParseScript(path string) (*Program, error) {
 
 	// Tokenize and parse
 	lexer := NewLexer(string(source))
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, err
+	}
 	parser := NewParserWithFile(tokens, path)
 	program, err := parser.Parse()
 	if err != nil {

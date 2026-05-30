@@ -33,7 +33,11 @@ func isExpressionStatement(program *script.Program) script.Node {
 func wrapExpressionWithPrint(code string) string {
 	// Try to parse the code
 	lexer := script.NewLexer(code)
-	tokens := lexer.Tokenize()
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		// If tokenization fails, return original code
+		return code
+	}
 
 	parser := script.NewParser(tokens)
 	program, err := parser.Parse()

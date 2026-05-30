@@ -36,17 +36,17 @@ Supports PNG, JPEG, and GIF formats. Output format matches input format.
 ### Scale for thumbnail (preserve aspect)
 
 ```duso
-image = load_binary("photo.jpg")
+image = load_image("photo.jpg")
 thumbnail = scale_image(image, 256, 256, "fit")
-save_binary(thumbnail, "photo_thumb.jpg")
+save_image(thumbnail, "photo_thumb.jpg")
 ```
 
 ### Scale for avatar (fill and crop)
 
 ```duso
-avatar = load_binary("avatar.png")
+avatar = load_image("avatar.png")
 square = scale_image(avatar, 200, 200, "fill")
-save_binary(square, "avatar_200x200.png")
+save_image(square, "avatar_200x200.png")
 ```
 
 ### Stretch to exact dimensions

@@ -1,0 +1,64 @@
+// Image processing test script
+
+img_dir = "/Users/dbalmer/Desktop/duso-img"
+make_dir(img_dir)
+
+// Load the logo
+logo = load_binary("/Users/dbalmer/Projects/duso-org/duso/docs/duso-logo.png")
+print("Loaded logo")
+
+// Scale to square with different modes
+size = 400
+fit = scale_image(logo, size, size, "fit")
+fill = scale_image(logo, size, size, "fill")
+stretch = scale_image(logo, size, size, "stretch")
+
+print("Scaled to", size, "x", size, ":")
+print("  fit:", fit.width, "x", fit.height)
+print("  fill:", fill.width, "x", fill.height)
+print("  stretch:", stretch.width, "x", stretch.height)
+
+// Save scaled versions
+save_binary(fit, img_dir + "/logo-fit.png")
+save_binary(fill, img_dir + "/logo-fill.png")
+save_binary(stretch, img_dir + "/logo-stretch.png")
+
+// Crop the fill version into 4 quarters
+half = size / 2
+
+tl = crop_image(fill, 0, 0, half, half)
+tr = crop_image(fill, half, 0, half, half)
+bl = crop_image(fill, 0, half, half, half)
+br = crop_image(fill, half, half, half, half)
+
+print("Cropped fill version into quarters:")
+print("  top-left:", tl.width, "x", tl.height)
+print("  top-right:", tr.width, "x", tr.height)
+print("  bottom-left:", bl.width, "x", bl.height)
+print("  bottom-right:", br.width, "x", br.height)
+
+// Save quarters
+save_binary(tl, img_dir + "/quarter-tl.png")
+save_binary(tr, img_dir + "/quarter-tr.png")
+save_binary(bl, img_dir + "/quarter-bl.png")
+save_binary(br, img_dir + "/quarter-br.png")
+
+// Convert top-left quarter to GIF and JPEG
+tl_gif = convert_image(tl, "gif")
+tl_jpeg = convert_image(tl, "jpeg")
+
+save_binary(tl_gif, img_dir + "/quarter-tl.gif")
+save_binary(tl_jpeg, img_dir + "/quarter-tl.jpg")
+
+print("Converted top-left quarter to GIF and JPEG")
+
+// Scale top-left quarter 3x for pixel inspection
+pixels_3x = scale_image(tl, tl.width * 3, tl.height * 3, "stretch")
+save_binary(pixels_3x, img_dir + "/quarter-tl-3x.png")
+
+print("Scaled top-left quarter 3x to", pixels_3x.width, "x", pixels_3x.height)
+
+print("\nGenerated images:")
+for entry in list_dir(img_dir) do
+  print("  " + entry.name)
+end

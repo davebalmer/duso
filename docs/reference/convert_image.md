@@ -32,43 +32,43 @@ Converts an image from one format to another. Supports conversion between PNG, J
 ### Convert PNG to JPEG
 
 ```duso
-png_image = load_binary("photo.png")
+png_image = load_image("photo.png")
 jpeg = convert_image(png_image, "jpeg")
-save_binary(jpeg, "photo.jpg")
+save_image(jpeg, "photo.jpg")
 ```
 
 ### Convert JPEG to PNG
 
 ```duso
-jpg_image = load_binary("photo.jpg")
+jpg_image = load_image("photo.jpg")
 png = convert_image(jpg_image, "png")
-save_binary(png, "photo.png")
+save_image(png, "photo.png")
 ```
 
 ### Using named arguments
 
 ```duso
-image = load_binary("image.gif")
+image = load_image("image.gif")
 converted = convert_image(image, format = "png")
 ```
 
 ### Format conversion in pipeline
 
 ```duso
-image = load_binary("original.jpg")
+image = load_image("original.jpg")
 scaled = scale_image(image, 800, 600, "fit")
 cropped = crop_image(scaled, 100, 100, 600, 400)
 result = convert_image(cropped, "png")
-save_binary(result, "final.png")
+save_image(result, "final.png")
 ```
 
 ### Convert for web delivery
 
 ```duso
-original = load_binary("photo.png")
+original = load_image("photo.png")
 web_version = convert_image(original, "jpeg")
 // JPEG typically smaller for web photos
-save_binary(web_version, "web.jpg")
+save_image(web_version, "web.jpg")
 ```
 
 ## Metadata
@@ -110,6 +110,6 @@ The returned binary includes updated metadata:
 
 - [scale_image() - Resize images](/docs/reference/scale_image.md)
 - [crop_image() - Extract image regions](/docs/reference/crop_image.md)
-- [load_binary() - Load image files](/docs/reference/load_binary.md)
-- [save_binary() - Save images to files](/docs/reference/save_binary.md)
+- [load_image() - Load image files](/docs/reference/load_image.md)
+- [save_image() - Save images to files](/docs/reference/save_image.md)
 - [binary - Binary data type overview](/docs/reference/binary.md)

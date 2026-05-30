@@ -33,40 +33,40 @@ Supports PNG, JPEG, and GIF formats. Output format matches input format.
 ### Extract center region
 
 ```duso
-image = load_binary("photo.jpg")
+image = load_image("photo.jpg")
 center = crop_image(image, 100, 100, 200, 200)
-save_binary(center, "center.jpg")
+save_image(center, "center.jpg")
 ```
 
 ### Create square crop
 
 ```duso
-portrait = load_binary("portrait.png")
+portrait = load_image("portrait.png")
 square = crop_image(portrait, 0, 50, 300, 300)
-save_binary(square, "square.png")
+save_image(square, "square.png")
 ```
 
 ### Using named arguments
 
 ```duso
-image = load_binary("photo.gif")
+image = load_image("photo.gif")
 cropped = crop_image(image, x = 50, y = 50, width = 150, height = 150)
 ```
 
 ### Positional then named
 
 ```duso
-image = load_binary("image.jpg")
+image = load_image("image.jpg")
 region = crop_image(image, 10, 10, width = 100, height = 100)
 ```
 
 ### Pipelining
 
 ```duso
-image = load_binary("photo.jpg")
+image = load_image("photo.jpg")
 cropped = crop_image(image, 50, 50, 400, 400)
 thumbnail = scale_image(cropped, 200, 200, "fit")
-save_binary(thumbnail, "thumb.jpg")
+save_image(thumbnail, "thumb.jpg")
 ```
 
 ## Behavior
@@ -94,6 +94,6 @@ The returned binary includes updated metadata:
 
 - [scale_image() - Resize images](/docs/reference/scale_image.md)
 - [convert_image() - Convert between image formats](/docs/reference/convert_image.md)
-- [load_binary() - Load image files](/docs/reference/load_binary.md)
-- [save_binary() - Save images to files](/docs/reference/save_binary.md)
+- [load_image() - Load image files](/docs/reference/load_image.md)
+- [save_image() - Save images to files](/docs/reference/save_image.md)
 - [binary - Binary data type overview](/docs/reference/binary.md)

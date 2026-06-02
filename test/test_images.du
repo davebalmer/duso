@@ -115,8 +115,8 @@ save_binary(transparent, img_dir + "/logo-opacity-20.png")
 
 // Test adjust_image_opacity
 print("\nTesting adjust_image_opacity:")
-adjusted_half = adjust_image_opacity(semi_transparent, 0.5)
-print("  Adjusted 0.5 on 0.5 opacity:", adjusted_half.width, "x", adjusted_half.height)
+adjusted_half = adjust_image_opacity(logo, 0.5)
+print("  Adjusted 0.5 opacity:", adjusted_half.width, "x", adjusted_half.height)
 
 save_binary(adjusted_half, img_dir + "/logo-opacity-adjusted.png")
 

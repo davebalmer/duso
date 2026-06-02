@@ -161,9 +161,18 @@
 
 ### Image Processing
 
+- [`load_image(path)`](/docs/reference/load_image.md) Load image from file
+- [`save_image(image, path)`](/docs/reference/save_image.md) Save image to file
 - [`scale_image(image, max_x, max_y, mode)`](/docs/reference/scale_image.md) Scale image with fit/fill/stretch modes
 - [`crop_image(image, x, y, width, height)`](/docs/reference/crop_image.md) Extract rectangular region from image
+- [`rotate_image(image, degrees)`](/docs/reference/rotate_image.md) Rotate by 90, 180, or 270 degrees
+- [`flip_image_x(image)`](/docs/reference/flip_image_x.md) Flip horizontally (left-right mirror)
+- [`flip_image_y(image)`](/docs/reference/flip_image_y.md) Flip vertically (top-bottom mirror)
+- [`grayscale_image(image)`](/docs/reference/grayscale_image.md) Convert to grayscale
 - [`convert_image(image, format)`](/docs/reference/convert_image.md) Convert between PNG, JPEG, and GIF formats
+- [`composite_image(base, overlay, x, y, blend)`](/docs/reference/composite_image.md) Layer overlay on base with blend modes
+- [`set_image_opacity(image, opacity)`](/docs/reference/set_image_opacity.md) Set absolute opacity (0.0-1.0)
+- [`adjust_image_opacity(image, factor)`](/docs/reference/adjust_image_opacity.md) Multiply opacity by factor
 
 ### Network & HTTP
 

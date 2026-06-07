@@ -478,6 +478,7 @@ func (p *Parser) parseParameters() ([]*Parameter, error) {
 }
 
 func (p *Parser) parseFunctionDef() (*FunctionDef, error) {
+	funcPos := Position{Line: p.current().Line, Column: p.current().Column}
 	p.advance() // skip "function"
 
 	name := p.current().Value
@@ -510,8 +511,8 @@ func (p *Parser) parseFunctionDef() (*FunctionDef, error) {
 		return nil, err
 	}
 
-	// Create function def - we'll set position at function keyword
-	return &FunctionDef{Pos: Position{Line: 1, Column: 1}, Name: name, Parameters: params, Body: body}, nil
+	// Create function def with actual position
+	return &FunctionDef{Pos: funcPos, Name: name, Parameters: params, Body: body}, nil
 }
 
 func (p *Parser) parseFunctionExpr() (*FunctionExpr, error) {
@@ -714,7 +715,7 @@ func (p *Parser) parseOr() (Node, error) {
 		var right Node
 		right, err = p.parseAnd()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -736,7 +737,7 @@ func (p *Parser) parseAnd() (Node, error) {
 		var right Node
 		right, err = p.parseEquality()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -758,7 +759,7 @@ func (p *Parser) parseEquality() (Node, error) {
 		var right Node
 		right, err = p.parseComparison()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -780,7 +781,7 @@ func (p *Parser) parseComparison() (Node, error) {
 		var right Node
 		right, err = p.parseAddition()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -802,7 +803,7 @@ func (p *Parser) parseAddition() (Node, error) {
 		var right Node
 		right, err = p.parseMultiplication()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -824,7 +825,7 @@ func (p *Parser) parseMultiplication() (Node, error) {
 		var right Node
 		right, err = p.parseUnary()
 		if err != nil {
-			return nil, p.parseError(err.Error(), opPos)
+			return nil, err
 		}
 		left = &BinaryExpr{Pos: opPos, Op: op, Left: left, Right: right}
 	}
@@ -912,7 +913,7 @@ func (p *Parser) parsePostfix() (Node, error) {
 		}
 
 		if err != nil {
-			return nil, p.parseError(err.Error(), pos)
+			return nil, err
 		}
 	}
 }
@@ -1140,17 +1141,38 @@ func (p *Parser) ParseTemplateString(template string, pos Position) (Node, error
 
 		// Extract and parse expression (raw, no unescaping for expressions)
 		exprStr := template[exprStart : exprStart+end]
-		exprLexer := NewLexer(exprStr)
+
+		// Calculate correct starting position for expression within template
+		linesBeforeExpr := 0
+		lastNewlinePos := -1
+		for j := 0; j < exprStart; j++ {
+			if template[j] == '\n' {
+				linesBeforeExpr++
+				lastNewlinePos = j
+			}
+		}
+
+		exprStartLine := pos.Line + linesBeforeExpr
+		exprStartCol := exprStart
+		if lastNewlinePos == -1 {
+			// No newlines before expression - column is relative to template string start
+			exprStartCol = pos.Column + 1 + exprStart // +1 for the quote
+		} else {
+			// There are newlines - column is just offset from last newline
+			exprStartCol = exprStart - lastNewlinePos - 1
+		}
+
+		exprLexer := NewLexerAt(exprStr, exprStartLine, exprStartCol)
 		exprTokens, err := exprLexer.Tokenize()
 		if err != nil {
-			pos := Position{Line: 1, Column: exprStart}
-			return nil, p.parseError(fmt.Sprintf("error in template expression: %v", err), pos)
+			errPos := Position{Line: exprStartLine, Column: exprStartCol}
+			return nil, p.parseError(fmt.Sprintf("error in template expression: %v", err), errPos)
 		}
 		exprParser := NewParser(exprTokens)
 		expr, err := exprParser.parseExpression()
 		if err != nil {
-			pos := Position{Line: 1, Column: exprStart}
-			return nil, p.parseError(fmt.Sprintf("error in template expression: %v", err), pos)
+			errPos := Position{Line: exprStartLine, Column: exprStartCol}
+			return nil, p.parseError(fmt.Sprintf("error in template expression: %v", err), errPos)
 		}
 
 		parts = append(parts, expr)

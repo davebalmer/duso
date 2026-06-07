@@ -21,19 +21,29 @@ import (
 )
 
 type Lexer struct {
-	source string
-	pos    int
-	line   int
-	column int
-	ch     rune
+	source     string
+	pos        int
+	line       int
+	column     int
+	ch         rune
+	startLine  int // Line offset for expressions within templates
+	startCol   int // Column offset for first line of template expressions
 }
 
 func NewLexer(source string) *Lexer {
+	return NewLexerAt(source, 1, 0)
+}
+
+// NewLexerAt creates a lexer with a starting line and column position
+// Used for parsing template expressions within strings
+func NewLexerAt(source string, startLine int, startCol int) *Lexer {
 	l := &Lexer{
-		source: source,
-		pos:    0,
-		line:   1,
-		column: 0,
+		source:    source,
+		pos:       0,
+		line:      startLine,
+		column:    startCol,
+		startLine: startLine,
+		startCol:  startCol,
 	}
 	l.readChar()
 	return l

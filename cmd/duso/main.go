@@ -758,6 +758,33 @@ func copyTemplateDir(srcPath, dstPath string) error {
 	return nil
 }
 
+// lintFiles lints one or more Duso script files
+func lintFiles(files []string) error {
+	for _, file := range files {
+		source, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", file, err)
+			continue
+		}
+
+		diagnostics, err := cli.LintScript(file, string(source))
+		if err != nil {
+			// Error from parser already includes file:line:col info
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			continue
+		}
+
+		for _, diag := range diagnostics {
+			severity := "error"
+			if diag.Severity == 1 {
+				severity = "warning"
+			}
+			fmt.Printf("%s:%d:%d: %s: %s\n", file, diag.Line, diag.Column, severity, diag.Message)
+		}
+	}
+	return nil
+}
+
 // extractFiles extracts files from embedded filesystem to local disk
 // Supports glob patterns and directory extraction with structure preservation
 func extractFiles(source, dest string) error {
@@ -936,6 +963,7 @@ func main() {
 	lspStdio := flag.Bool("lsp", false, "Start LSP server on stdio")
 	lspTCP := flag.String("lsp-tcp", "", "Start LSP server on TCP port (e.g., -lsp-tcp 9999)")
 	doInstall := flag.Bool("install", false, "Install duso binary to system PATH")
+	doLint := flag.Bool("lint", false, "Lint Duso scripts for errors and warnings")
 
 	// Allow unknown flags to pass through to scripts
 	flag.CommandLine.Init(flag.CommandLine.Name(), flag.ContinueOnError)
@@ -1026,6 +1054,20 @@ func main() {
 			projName = args[0]
 		}
 		if err := initProject(projName); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Handle -lint flag
+	if *doLint {
+		files := flag.Args()
+		if len(files) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: -lint requires at least one file\n")
+			os.Exit(1)
+		}
+		if err := lintFiles(files); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

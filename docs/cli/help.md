@@ -21,6 +21,7 @@
   `duso -read [PATH]`      Browse files and docs from embedded filesystem
   `duso -init DIR`         Create a starter project in DIR
   `duso -extract SRC DST`  Extract files from embedded filesystem to disk
+  `duso -lint FILES...`    Lint Duso scripts for errors and warnings
   `duso -lsp`              Start LSP server on stdio
   `duso -lsp-tcp PORT`     Start LSP server on TCP port
   `duso -install`          Install duso binary to system PATH

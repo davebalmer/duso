@@ -26,6 +26,7 @@
 - [claude](/contrib/claude/claude.md) Anthropic Claude API integration with multi-turn conversations and tools
 - [couchdb](/contrib/couchdb/couchdb.md) CouchDB database client with CRUD operations and Mango queries
 - [deepseek](/contrib/deepseek/deepseek.md) DeepSeek LLM API idiomatic interface
+- [gemini](/contrib/gemini/gemini.md) Google Gemini API with OpenAI-compatible interface
 - [groq](/contrib/groq/groq.md) Groq ultra-fast inference API
 - [ollama](/contrib/ollama/ollama.md) Local LLMs through Ollama's OpenAI-compatible API
 - [openai](/contrib/openai/openai.md) OpenAI API with options-based interface

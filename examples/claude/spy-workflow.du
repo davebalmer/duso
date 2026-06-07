@@ -49,7 +49,7 @@ spy = claude.session({
 		Minimal stage directions. DO NOT blow your cover!
 	""",
 	model = "claude-haiku-4-5-20251001",
-	temperature = 0.8,
+	temperature = 1.0,
 	max_tokens = 256
 })
 
@@ -62,7 +62,7 @@ guard = claude.session({
 		Respond with 1-2 sentences only. Minimal stage directions. Stay in character!
 	""",
 	model = "claude-haiku-4-5-20251001",
-	temperature = 0.8,
+	temperature = 1.0,
 	max_tokens = 256
 })
 
@@ -82,10 +82,10 @@ while turn < max_turns and not story_over do
 	turn = turn + 1
 
 	// spy's turn
-	write(ansi.error("Bob: "))
+	write(ansi.error("Spy: "))
 	busy("...")
 	spy_says = spy.prompt(guard_says)
-	push(transcript, "SPY: " + spy_says)
+	push(transcript, "**SPY:** " + spy_says)
 	write(md.ansi(spy_says))
 	print()
 
@@ -101,7 +101,7 @@ while turn < max_turns and not story_over do
 	write(ansi.warning("Guard: "))
 	busy("...")
 	guard_says = guard.prompt(spy_says)
-	push(transcript, "GUARD: " + guard_says)
+	push(transcript, "**GUARD:** " + guard_says)
 	write(md.ansi(guard_says))
 	print()
 
@@ -136,7 +136,7 @@ prompt = """
 
 	Re-write this as a short comedic screenplay.
 	Keep the general story outline but make it funny.
-	**Really funny** to a general audience. 
+	**Really funny** to a general audience.
 """
 
 write(ansi.success("Writer: "))
@@ -145,3 +145,7 @@ busy("writing...")
 writer_response = writer.prompt(prompt)
 print(md.ansi(writer_response))
 
+if sys("-debug") then
+  save("/CWD/transcript.md", join(transcript, "\n\n"))
+  save("/CWD/script.md", writer_response)
+end

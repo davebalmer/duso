@@ -4,14 +4,15 @@ Access Google's Gemini API directly from Duso scripts using the OpenAI-compatibl
 
 ## Setup
 
-Set your API key as an environment variable:
+1. Get a free API key from [Google AI Studio](https://aistudio.google.com)
+2. Set your API key as an environment variable:
 
 ```bash
 export GEMINI_API_KEY=your_api_key_here
 duso script.du
 ```
 
-Or pass it explicitly:
+Or pass it explicitly in code:
 
 ```duso
 gemini = require("gemini")
@@ -38,15 +39,25 @@ response2 = chat.prompt("What are its advantages?")
 print(chat.usage)
 ```
 
+## Endpoint
+
+Default: `https://generativelanguage.googleapis.com/v1beta/openai/`
+
+Cloud-hosted API (no local setup required, unlike Ollama).
+
 ## Available Models
 
-- `gemini-2.5-pro` (default) - Latest high-capability model
+- `gemini-2.5-pro` (default) - Latest high-capability model with 2M context
 - `gemini-2.5-flash` - Fast and efficient
 - `gemini-2.5-flash-lite` - Budget-friendly option
 - `gemini-1.5-pro` - Previous generation pro model
 - `gemini-1.5-flash` - Previous generation flash model
 
-See Google's [Gemini API documentation](https://ai.google.dev/gemini-api) for the latest model list.
+See [Gemini API documentation](https://ai.google.dev/gemini-api) for the latest model list.
+
+## API Key Required
+
+Gemini is a cloud API. You need a valid Google API key from [AI Studio](https://aistudio.google.com).
 
 ## Configuration Options
 
@@ -55,14 +66,10 @@ Same as OpenAI module - see [openai.md](/contrib/openai/openai.md) for full refe
 Key differences:
 - API key environment variable: `GEMINI_API_KEY` (not `OPENAI_API_KEY`)
 - Default model: `gemini-2.5-pro`
-- Endpoint: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
-
-## Environment Variables
-
-- `GEMINI_API_KEY` - Your API key (required if not passed in config)
+- Cloud endpoint (no local installation needed)
 
 ## See Also
 
 - [openai.md](/contrib/openai/openai.md) - Full API documentation (identical interface)
-- [Google AI Studio](https://aistudio.google.com) - Get your API key free
+- [Google AI Studio](https://aistudio.google.com) - Get your free API key
 - [Gemini API Documentation](https://ai.google.dev/gemini-api) - Complete API reference

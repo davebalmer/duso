@@ -258,7 +258,3 @@
 - [`sign_ec(data, private_key_pem)`](/docs/reference/sign_ec.md) Sign data with EC private key (ES256, P-256 curve)
 - [`verify_ec(data, signature, public_key_pem)`](/docs/reference/verify_ec.md) Verify EC signature (ES256, P-256 curve)
 - [`ec_from_jwk(x, y)`](/docs/reference/ec_from_jwk.md) Convert JWK x,y coordinates to PEM-encoded EC public key (P-256)
-
-## Embedding
-
-Learn about [Embedding Duso](/docs/embedding/) in your Go applications.

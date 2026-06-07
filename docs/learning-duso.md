@@ -51,13 +51,20 @@ Duso supports various command-line flags for different workflows:
 - `-extract SRC DST` Extract files from the embedded virtual filesystem to disk
 - `-lib-path PATH` Pre-pend a path to the module search path (for custom modules)
 - `-no-files` Sandbox filesystem access: disables real filesystem access, restricting I/O to `/EMBED/` (read-only embedded files) and `/STORE/` (datastore virtual filesystem). Critical for running untrusted code like LLM-generated scripts.
-- `-stdin-port PORT` Replace stdin/stdout with HTTP GET/POST (useful for sandboxed/containerized environments)
-
-#### Utility
-- `-help` Show the help message
-- `-lsp` Start in Language Server Protocol mode (for editor integration)
 - `-no-stdin` Disable stdin reading (useful for non-interactive execution)
 - `-no-color` Disable ANSI color output in terminal
+- `-stdin-port PORT` Replace stdin/stdout with HTTP GET/POST (useful for sandboxed/containerized environments)
+
+#### Development & Integration
+
+- `-lint FILES...` Analyze Duso scripts for errors and warnings
+- `-lsp` Start Language Server Protocol on stdio (for editor integration)
+- `-lsp-tcp PORT` Start Language Server Protocol on TCP port (for remote editor integration)
+
+#### System
+
+- `-install` Install duso binary to system PATH
+- `-help` Show the help message
 - `-version` Display the current Duso version
 
 ## Comments

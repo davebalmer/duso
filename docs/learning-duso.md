@@ -1367,17 +1367,25 @@ print(response)
 
 Claude automatically executes tool calls and integrates results into the conversation. The `claude` module makes it easy to orchestrate multi-step AI workflows with tool use loops. See [Claude Module Documentation](/contrib/claude/claude.md) for full details on tools, handlers, and manual tool control.
 
-#### Future LLM Providers:
+#### Using Other LLM Providers:
 
-As we add support for OpenAI, Gemini, and other providers, they will follow the same module pattern:
+All supported LLM providers follow the same simple module pattern. Here are examples with OpenAI, Groq, and Ollama:
 
 ```duso
-// Coming soon - these will work the same way
+// OpenAI
 openai = require("openai")
-response = openai.prompt("Your question", {model = "gpt-4"})
+response = openai.prompt("What is 2 + 2?", {model = "gpt-4"})
+print(response)
 
-gemini = require("gemini")
-response = gemini.prompt("Your question", {model = "gemini-2.0"})
+// Groq (ultra-fast inference)
+groq = require("groq")
+response = groq.prompt("Explain quantum computing", {model = "mixtral-8x7b-32768"})
+print(response)
+
+// Ollama (local models)
+ollama = require("ollama")
+response = ollama.prompt("Tell me a joke", {model = "mistral"})
+print(response)
 ```
 
 Community contributions for additional LLM providers are welcome! See the [LLM Provider Support](#llm-provider-support) section for details.

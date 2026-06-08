@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/duso-org/duso/pkg/script"
 )
@@ -17,7 +18,7 @@ func builtinLen(evaluator *Evaluator, args map[string]any) (any, error) {
 		case map[string]any:
 			return float64(len(v)), nil
 		case string:
-			return float64(len(v)), nil
+			return float64(utf8.RuneCountInString(v)), nil
 		case *ValueRef:
 			// Handle wrapped values (binary, code, error, etc)
 			if bin := v.Val.AsBinary(); bin != nil && bin.Data != nil {

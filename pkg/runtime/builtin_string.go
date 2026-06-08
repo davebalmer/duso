@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // builtinUpper converts string to uppercase, coercing input to string if needed
@@ -51,40 +52,48 @@ func builtinLower(evaluator *Evaluator, args map[string]any) (any, error) {
 	return nil, fmt.Errorf("lower() requires an argument")
 }
 
-// builtinSubstr extracts substring: substr(str, start [, length])
+// builtinSubstr extracts substring: substr(str, pos [, length])
 func builtinSubstr(evaluator *Evaluator, args map[string]any) (any, error) {
-	s, ok := args["0"].(string)
+	s, ok := GetArg(args, 0, "str").(string)
 	if !ok {
 		return nil, fmt.Errorf("substr() requires a string as first argument")
 	}
 
-	start, ok := args["1"].(float64)
+	startVal := GetArg(args, 1, "pos")
+	start, ok := startVal.(float64)
 	if !ok {
 		return nil, fmt.Errorf("substr() requires a number as second argument")
 	}
 	startIdx := int(start)
 
+	// Convert string to runes for character-based indexing
+	runes := []rune(s)
+	runeLen := len(runes)
+
 	// Handle negative index (from end)
 	if startIdx < 0 {
-		startIdx = len(s) + startIdx
+		startIdx = runeLen + startIdx
 	}
 	if startIdx < 0 {
 		startIdx = 0
 	}
-	if startIdx >= len(s) {
+	if startIdx >= runeLen {
 		return "", nil
 	}
 
 	// If length provided, use it; otherwise take to end
-	if length, ok := args["2"].(float64); ok {
-		endIdx := startIdx + int(length)
-		if endIdx > len(s) {
-			endIdx = len(s)
+	lengthVal := GetArg(args, 2, "length")
+	if lengthVal != nil {
+		if length, ok := lengthVal.(float64); ok {
+			endIdx := startIdx + int(length)
+			if endIdx > runeLen {
+				endIdx = runeLen
+			}
+			return string(runes[startIdx:endIdx]), nil
 		}
-		return s[startIdx:endIdx], nil
 	}
 
-	return s[startIdx:], nil
+	return string(runes[startIdx:]), nil
 }
 
 // builtinTrim removes whitespace from both ends
@@ -116,5 +125,71 @@ func builtinRepeat(evaluator *Evaluator, args map[string]any) (any, error) {
 	}
 
 	return strings.Repeat(s, n), nil
+}
+
+// builtinPadLeft pads a string on the left: pad_left(str, width [, char])
+func builtinPadLeft(evaluator *Evaluator, args map[string]any) (any, error) {
+	s, ok := GetArg(args, 0, "str").(string)
+	if !ok {
+		return nil, fmt.Errorf("pad_left() requires a string as first argument")
+	}
+
+	widthVal := GetArg(args, 1, "width")
+	width, ok := widthVal.(float64)
+	if !ok {
+		return nil, fmt.Errorf("pad_left() requires a number as second argument")
+	}
+
+	padChar := " "
+	if charVal := GetArg(args, 2, "char"); charVal != nil {
+		if char, ok := charVal.(string); ok {
+			if utf8.RuneCountInString(char) != 1 {
+				return nil, fmt.Errorf("pad_left() pad character must be a single character")
+			}
+			padChar = char
+		}
+	}
+
+	w := int(width)
+	currentLen := utf8.RuneCountInString(s)
+	if currentLen >= w {
+		return s, nil
+	}
+
+	padding := strings.Repeat(padChar, w-currentLen)
+	return padding + s, nil
+}
+
+// builtinPadRight pads a string on the right: pad_right(str, width [, char])
+func builtinPadRight(evaluator *Evaluator, args map[string]any) (any, error) {
+	s, ok := GetArg(args, 0, "str").(string)
+	if !ok {
+		return nil, fmt.Errorf("pad_right() requires a string as first argument")
+	}
+
+	widthVal := GetArg(args, 1, "width")
+	width, ok := widthVal.(float64)
+	if !ok {
+		return nil, fmt.Errorf("pad_right() requires a number as second argument")
+	}
+
+	padChar := " "
+	if charVal := GetArg(args, 2, "char"); charVal != nil {
+		if char, ok := charVal.(string); ok {
+			if utf8.RuneCountInString(char) != 1 {
+				return nil, fmt.Errorf("pad_right() pad character must be a single character")
+			}
+			padChar = char
+		}
+	}
+
+	w := int(width)
+	currentLen := utf8.RuneCountInString(s)
+	if currentLen >= w {
+		return s, nil
+	}
+
+	padding := strings.Repeat(padChar, w-currentLen)
+	return s + padding, nil
 }
 

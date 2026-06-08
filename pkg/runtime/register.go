@@ -59,6 +59,8 @@ func RegisterBuiltins() {
 	RegisterBuiltin("repeat", builtinRepeat)
 	RegisterBuiltin("substr", builtinSubstr)
 	RegisterBuiltin("trim", builtinTrim)
+	RegisterBuiltin("pad_left", builtinPadLeft)
+	RegisterBuiltin("pad_right", builtinPadRight)
 
 	// Math operations - basic
 	RegisterBuiltin("floor", builtinFloor)

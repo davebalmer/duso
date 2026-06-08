@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // builtinContains checks if string contains substring
@@ -115,18 +116,18 @@ func builtinEndsWith(evaluator *Evaluator, args map[string]any) (any, error) {
 
 // builtinFind finds all matches of a pattern in a string
 func builtinFind(evaluator *Evaluator, args map[string]any) (any, error) {
-	s, ok := args["0"].(string)
+	s, ok := GetArg(args, 0, "str").(string)
 	if !ok {
 		return nil, fmt.Errorf("find() requires a string as first argument")
 	}
 
-	pattern, ok := args["1"].(string)
+	pattern, ok := GetArg(args, 1, "pattern").(string)
 	if !ok {
 		return nil, fmt.Errorf("find() requires a string pattern as second argument")
 	}
 
 	ignoreCase := false
-	if ic, ok := args["ignore_case"].(bool); ok {
+	if ic, ok := GetArg(args, 2, "ignore_case").(bool); ok {
 		ignoreCase = ic
 	}
 
@@ -141,18 +142,22 @@ func builtinFind(evaluator *Evaluator, args map[string]any) (any, error) {
 		return nil, fmt.Errorf("find() invalid regex: %v", err)
 	}
 
-	// Find all matches
+	// Find all matches and convert byte positions to character positions
 	matches := re.FindAllStringIndex(s, -1)
 	var result []Value
 	for _, match := range matches {
-		start := match[0]
-		end := match[1]
-		text := s[start:end]
+		byteStart := match[0]
+		byteEnd := match[1]
+		text := s[byteStart:byteEnd]
+
+		// Convert byte positions to character positions
+		charPos := utf8.RuneCountInString(s[:byteStart])
+		charLen := utf8.RuneCountInString(text)
 
 		matchObj := make(map[string]Value)
 		matchObj["text"] = NewString(text)
-		matchObj["pos"] = NewNumber(float64(start))
-		matchObj["len"] = NewNumber(float64(len(text)))
+		matchObj["pos"] = NewNumber(float64(charPos))
+		matchObj["len"] = NewNumber(float64(charLen))
 
 		result = append(result, NewObject(matchObj))
 	}
@@ -162,23 +167,23 @@ func builtinFind(evaluator *Evaluator, args map[string]any) (any, error) {
 
 // builtinReplace replaces matches of a pattern with a string or function result
 func builtinReplace(evaluator *Evaluator, args map[string]any) (any, error) {
-	s, ok := args["0"].(string)
+	s, ok := GetArg(args, 0, "str").(string)
 	if !ok {
 		return nil, fmt.Errorf("replace() requires a string as first argument")
 	}
 
-	pattern, ok := args["1"].(string)
+	pattern, ok := GetArg(args, 1, "pattern").(string)
 	if !ok {
 		return nil, fmt.Errorf("replace() requires a string pattern as second argument")
 	}
 
-	replacement, ok := args["2"]
-	if !ok {
+	replacement := GetArg(args, 2, "replacement")
+	if replacement == nil {
 		return nil, fmt.Errorf("replace() requires a replacement (string or function) as third argument")
 	}
 
 	ignoreCase := false
-	if ic, ok := args["ignore_case"].(bool); ok {
+	if ic, ok := GetArg(args, 3, "ignore_case").(bool); ok {
 		ignoreCase = ic
 	}
 
@@ -215,15 +220,19 @@ func builtinReplace(evaluator *Evaluator, args map[string]any) (any, error) {
 	offset := 0 // Track offset as we replace
 
 	for _, match := range matches {
-		start := match[0] + offset
-		end := match[1] + offset
-		text := result[start:end]
+		byteStart := match[0] + offset
+		byteEnd := match[1] + offset
+		text := result[byteStart:byteEnd]
+
+		// Convert byte position to character position in original string
+		charPos := utf8.RuneCountInString(s[:match[0]])
+		charLen := utf8.RuneCountInString(text)
 
 		// Call the replacement function with (text, pos, len) using public API
 		fnArgs := map[string]Value{
 			"0": NewString(text),
-			"1": NewNumber(float64(match[0])), // Original position in original string
-			"2": NewNumber(float64(len(text))),
+			"1": NewNumber(float64(charPos)),
+			"2": NewNumber(float64(charLen)),
 		}
 		replacementResult, err := evaluator.CallFunction(fn, fnArgs)
 		if err != nil {
@@ -233,8 +242,8 @@ func builtinReplace(evaluator *Evaluator, args map[string]any) (any, error) {
 		replacementText := replacementResult.AsString()
 
 		// Replace in result
-		result = result[:start] + replacementText + result[end:]
-		offset += len(replacementText) - (end - start)
+		result = result[:byteStart] + replacementText + result[byteEnd:]
+		offset += len(replacementText) - (byteEnd - byteStart)
 	}
 
 	return result, nil

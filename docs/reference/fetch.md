@@ -5,8 +5,6 @@ Make HTTP requests using a JavaScript-style fetch API. Returns immediately (sync
 
 `fetch(url [, options])`
 
-```
-
 ## Parameters
 
 - `url` (string) - URL to request

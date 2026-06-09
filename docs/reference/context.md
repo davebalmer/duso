@@ -5,8 +5,6 @@ Get runtime context information. Returns contextual data from the surrounding en
 
 `context()`
 
-```
-
 ## Parameters
 
 None

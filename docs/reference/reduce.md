@@ -5,8 +5,6 @@ Combine all elements of an array into a single value using an accumulator functi
 
 `reduce(array, function, initial_value)`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to reduce

@@ -5,8 +5,6 @@ Get an array of all values in an object.
 
 `values(object)`
 
-```
-
 ## Parameters
 
 - `object` (object) - The object to get values from

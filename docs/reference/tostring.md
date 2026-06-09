@@ -5,8 +5,6 @@ Convert a value to a string.
 
 `tostring(value)`
 
-```
-
 ## Parameters
 
 - `value` - Any Duso value to convert

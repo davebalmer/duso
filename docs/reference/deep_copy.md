@@ -5,8 +5,6 @@ Create a deep (recursive) copy of a value. Arrays and objects are recursively co
 
 `deep_copy(value)`
 
-```
-
 ## Parameters
 
 - `value` (any) - The value to deep copy

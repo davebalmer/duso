@@ -5,8 +5,6 @@ Get an array of all keys in an object.
 
 `keys(object)`
 
-```
-
 ## Parameters
 
 - `object` (object) - The object to get keys from

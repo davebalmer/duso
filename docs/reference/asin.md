@@ -5,8 +5,6 @@ Calculate the inverse sine (arcsine) of a value in radians.
 
 `asin(x)`
 
-```
-
 ## Parameters
 
 - `x` (number) - Value between -1 and 1

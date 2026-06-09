@@ -5,8 +5,6 @@ Remove an empty directory.
 
 `remove_dir(path)`
 
-```
-
 ## Parameters
 
 - `path` (string) - Directory path to remove (must be empty), relative to the script's directory

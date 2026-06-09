@@ -5,8 +5,6 @@ Load and execute another Duso script in the current scope. Available in `duso` C
 
 `include(filename)`
 
-```
-
 ## Parameters
 
 - `filename` (string) - Path to the script, relative to script directory

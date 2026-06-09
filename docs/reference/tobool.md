@@ -5,8 +5,6 @@ Convert a value to a boolean.
 
 `tobool(value)`
 
-```
-
 ## Parameters
 
 - `value` - Any Duso value to convert

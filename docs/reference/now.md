@@ -5,8 +5,6 @@ Get the current time in the local timezone as a Unix timestamp.
 
 `now()`
 
-```
-
 ## Parameters
 
 None

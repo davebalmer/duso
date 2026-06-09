@@ -5,8 +5,6 @@ Split a string into an array of substrings based on a separator.
 
 `split(string, separator)`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to split

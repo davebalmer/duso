@@ -1,12 +1,8 @@
-# save_binary
+# save_binary()
 
 Write binary data to a file.
 
-## Syntax
-
-```duso
-save_binary(binary, filename)
-```
+`save_binary(binary, filename)`
 
 ## Parameters
 

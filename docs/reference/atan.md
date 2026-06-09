@@ -5,8 +5,6 @@ Calculate the inverse tangent (arctangent) of a value in radians.
 
 `atan(x)`
 
-```
-
 ## Parameters
 
 - `x` (number) - Any real number

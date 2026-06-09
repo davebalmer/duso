@@ -1,12 +1,8 @@
-# rotate_image
+# rotate_image()
 
 Rotates an image by 90, 180, or 270 degrees.
 
-## Syntax
-
-```duso
-rotate_image(image, degrees)
-```
+`rotate_image(image, degrees)`
 
 ## Parameters
 

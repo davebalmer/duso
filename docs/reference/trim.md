@@ -5,8 +5,6 @@ Remove leading and trailing whitespace from a string.
 
 `trim(string)`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to trim

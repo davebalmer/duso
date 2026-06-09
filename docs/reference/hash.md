@@ -5,8 +5,6 @@ Compute a cryptographic hash of data using the specified algorithm.
 
 `hash(algo, data)`
 
-```
-
 ## Parameters
 
 - `algo` (string) - The hash algorithm to use: `"sha256"`, `"sha512"`, `"sha1"`, or `"md5"`

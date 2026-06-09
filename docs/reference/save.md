@@ -5,8 +5,6 @@ Write content to a file. Available in `duso` CLI only.
 
 `save(filename, content)`
 
-```
-
 ## Parameters
 
 - `filename` (string) - Path to write to. See [Files, Modules, and Paths](/docs/files-and-modules.md#path-roots) for how paths are resolved.

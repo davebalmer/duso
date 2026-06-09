@@ -5,8 +5,6 @@ Access documentation for modules and builtins. Available in `duso` CLI only.
 
 `doc(name)`
 
-```
-
 ## Parameters
 
 - `name` (string) - Name of module or builtin function

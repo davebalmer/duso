@@ -5,8 +5,6 @@ Parse a JSON string into Duso objects and arrays.
 
 `parse_json(string)`
 
-```
-
 ## Parameters
 
 - `string` (string) - A valid JSON string

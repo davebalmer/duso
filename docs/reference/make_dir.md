@@ -5,8 +5,6 @@ Create a directory (including parent directories if needed).
 
 `make_dir(path)`
 
-```
-
 ## Parameters
 
 - `path` (string) - Directory path to create, relative to the script's directory

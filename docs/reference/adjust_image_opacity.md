@@ -1,12 +1,8 @@
-# adjust_image_opacity
+# adjust_image_opacity()
 
 Multiplies the opacity of an image by a factor (relative adjustment).
 
-## Syntax
-
-```duso
-adjust_image_opacity(image, opacity)
-```
+`adjust_image_opacity(image, opacity)`
 
 ## Parameters
 

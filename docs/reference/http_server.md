@@ -5,8 +5,6 @@ Create an HTTP server that listens for incoming requests and runs handler script
 
 `http_server([config])`
 
-```
-
 ## Parameters
 
 - `config` (optional, object) - Configuration object with options:

@@ -5,8 +5,6 @@ Output values to stdout, separated by spaces, without adding a newline at the en
 
 `write(...args)`
 
-```
-
 ## Parameters
 
 - `...args` - Any number of arguments of any type (numbers, strings, arrays, objects, etc.)

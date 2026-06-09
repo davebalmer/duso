@@ -5,8 +5,6 @@ Render markdown text to HTML.
 
 `markdown_html(text, options)`
 
-```
-
 ## Parameters
 
 - `text` (string) - Markdown text to render

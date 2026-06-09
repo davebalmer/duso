@@ -5,8 +5,6 @@ Access values from the sys datastore. Provides a convenient interface to read sy
 
 `sys(key)`
 
-```
-
 ## Parameters
 
 - `key` (string) - The key to retrieve from sys datastore

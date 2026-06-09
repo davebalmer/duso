@@ -1,12 +1,8 @@
-# set_image_opacity
+# set_image_opacity()
 
 Sets the opacity of an image to an absolute value.
 
-## Syntax
-
-```duso
-set_image_opacity(image, opacity)
-```
+`set_image_opacity(image, opacity)`
 
 ## Parameters
 

@@ -5,8 +5,6 @@ Delete a file.
 
 `remove_file(path)`
 
-```
-
 ## Parameters
 
 - `path` (string) - File path or wildcard pattern to delete, relative to the script's directory

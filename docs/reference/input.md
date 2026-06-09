@@ -5,8 +5,6 @@ Read a line of text from standard input (user input).
 
 `input([prompt])`
 
-```
-
 ## Parameters
 
 - `prompt` (optional, string) - Message to display before reading input

@@ -5,8 +5,6 @@ Render markdown text to ANSI-formatted output for terminal display with colors a
 
 `markdown_ansi(text, theme)`
 
-```
-
 ## Parameters
 
 - `text` (string) - Markdown text to render

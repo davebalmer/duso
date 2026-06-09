@@ -5,8 +5,6 @@ Parse a time string to a Unix timestamp.
 
 `parse_time(string [, format])`
 
-```
-
 ## Parameters
 
 - `string` (string) - Time string to parse

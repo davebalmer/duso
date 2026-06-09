@@ -5,8 +5,6 @@ Get the mathematical constant π (pi), approximately 3.14159...
 
 `pi()`
 
-```
-
 ## Parameters
 
 None

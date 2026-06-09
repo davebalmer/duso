@@ -5,8 +5,6 @@ Parse source code string into a code value or error value. Never throws—always
 
 `parse(source [, metadata])`
 
-```
-
 ## Parameters
 
 - `source` (string) - Duso source code to parse

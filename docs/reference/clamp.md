@@ -5,8 +5,6 @@ Constrain a number between a minimum and maximum value.
 
 `clamp(value, min, max)`
 
-```
-
 ## Parameters
 
 - `value` (number) - The number to clamp

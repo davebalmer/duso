@@ -1,12 +1,8 @@
-# composite_image
+# composite_image()
 
 Composites an overlay image on top of a base image with various blend modes.
 
-## Syntax
-
-```duso
-composite_image(base, overlay, x, y, blend)
-```
+`composite_image(base, overlay, x, y, blend)`
 
 ## Parameters
 

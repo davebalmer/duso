@@ -5,8 +5,6 @@ Copy a file from source to destination.
 
 `copy_file(src, dst)`
 
-```
-
 ## Parameters
 
 - `src` (string) - Source file path (can be from `/EMBED/` for embedded files)

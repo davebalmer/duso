@@ -5,8 +5,6 @@ Replace all matches of a pattern in a string. Supports literal strings, regular 
 
 `replace(string, pattern, replacement [, ignore_case])`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to search in

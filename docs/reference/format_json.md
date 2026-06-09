@@ -5,8 +5,6 @@ Convert a Duso value to a JSON string.
 
 `format_json(value [, indent])`
 
-```
-
 ## Parameters
 
 - `value` - Any Duso value to convert

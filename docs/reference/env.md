@@ -5,8 +5,6 @@ Read an environment variable. Available in `duso` CLI only.
 
 `env(varname)`
 
-```
-
 ## Parameters
 
 - `varname` (string) - Name of the environment variable

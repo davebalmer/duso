@@ -1,12 +1,8 @@
-# flip_image_y
+# flip_image_y()
 
 Flips an image vertically (top-bottom mirror across horizontal axis).
 
-## Syntax
-
-```duso
-flip_image_y(image)
-```
+`flip_image_y(image)`
 
 ## Parameters
 

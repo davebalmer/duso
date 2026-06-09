@@ -5,8 +5,6 @@ Repeat a string multiple times.
 
 `repeat(string, count)`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to repeat

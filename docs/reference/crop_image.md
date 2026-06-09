@@ -1,12 +1,8 @@
-# crop_image
+# crop_image()
 
 Extract a rectangular region from an image.
 
-## Syntax
-
-```duso
-crop_image(image, x, y, width, height)
-```
+`crop_image(image, x, y, width, height)`
 
 ## Parameters
 

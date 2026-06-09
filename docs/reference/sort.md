@@ -5,8 +5,6 @@ Sort an array in ascending order, optionally with a custom comparison function.
 
 `sort(array [, comparison_function])`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to sort

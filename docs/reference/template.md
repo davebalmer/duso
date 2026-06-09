@@ -5,8 +5,6 @@ Create a reusable template function from a string with `{{expression}}` syntax.
 
 `template(string) → function`
 
-```
-
 ## Parameters
 
 - `string` (string) - A string containing `{{expression}}` placeholders

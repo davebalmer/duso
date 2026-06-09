@@ -1,12 +1,8 @@
-# load_image
+# load_image()
 
 Load an image file and populate image metadata (width, height, format).
 
-## Syntax
-
-```duso
-load_image(filename)
-```
+`load_image(filename)`
 
 ## Parameters
 
@@ -63,7 +59,7 @@ save_image(cropped, "cropped.png")
 
 ## See Also
 
-- [load_binary()](load_binary.md) - Load raw binary files
-- [save_image()](save_image.md) - Save images to files
-- [scale_image()](scale_image.md) - Resize images
-- [crop_image()](crop_image.md) - Extract image regions
+- [load_binary()](/docs/reference/load_binary.md) - Load raw binary files
+- [save_image()](/docs/reference/save_image.md) - Save images to files
+- [scale_image()](/docs/reference/scale_image.md) - Resize images
+- [crop_image()](/docs/reference/crop_image.md) - Extract image regions

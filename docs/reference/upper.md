@@ -5,8 +5,6 @@ Convert a string to uppercase.
 
 `upper(string)`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to convert

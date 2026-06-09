@@ -5,8 +5,6 @@ Add one or more elements to the end of an array. Mutates the array in place and 
 
 `push(array, value1 [, value2, ...])`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to modify

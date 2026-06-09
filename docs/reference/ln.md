@@ -5,8 +5,6 @@ Calculate the natural logarithm of a number (logarithm base e).
 
 `ln(x)`
 
-```
-
 ## Parameters
 
 - `x` (number) - A positive number

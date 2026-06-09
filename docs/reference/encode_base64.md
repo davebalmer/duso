@@ -5,8 +5,6 @@ Encode a string or binary data to base64.
 
 `encode_base64(string | binary)`
 
-```
-
 ## Parameters
 
 - `string | binary` - The string or binary data to encode

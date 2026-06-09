@@ -5,8 +5,6 @@ Find the maximum value among multiple numbers.
 
 `max(...numbers)`
 
-```
-
 ## Parameters
 
 - `...numbers` - One or more numbers to compare

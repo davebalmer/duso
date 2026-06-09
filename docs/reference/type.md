@@ -5,8 +5,6 @@ Get the type name of a value for debugging and type checking.
 
 `type(value)`
 
-```
-
 ## Parameters
 
 - `value` - Any Duso value

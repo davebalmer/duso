@@ -5,8 +5,6 @@ Calculate the tangent of an angle in radians.
 
 `tan(angle)`
 
-```
-
 ## Parameters
 
 - `angle` (number) - Angle in radians

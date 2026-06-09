@@ -5,8 +5,6 @@ Create an array of numbers in a sequence.
 
 `range(start, end [, step])`
 
-```
-
 ## Parameters
 
 - `start` (number) - Starting value (inclusive)

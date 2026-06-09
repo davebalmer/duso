@@ -5,8 +5,6 @@ List the contents of a directory.
 
 `list_dir(path)`
 
-```
-
 ## Parameters
 
 - `path` (string) - Directory path relative to the script's directory

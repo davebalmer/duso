@@ -5,8 +5,6 @@ Calculate the angle (in radians) of a point (x, y) relative to the origin. Handl
 
 `atan2(y, x)`
 
-```
-
 ## Parameters
 
 - `y` (number) - Y-coordinate (vertical)

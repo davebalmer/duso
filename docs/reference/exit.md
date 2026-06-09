@@ -5,8 +5,6 @@ Terminate the current script and optionally return a value to the caller.
 
 `exit([value])`
 
-```
-
 ## Parameters
 
 - `value` (optional, any type) - Value to return to the caller. Meaning depends on context.

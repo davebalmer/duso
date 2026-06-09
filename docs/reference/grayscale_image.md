@@ -1,12 +1,8 @@
-# grayscale_image
+# grayscale_image()
 
 Converts an image to grayscale while preserving the alpha channel.
 
-## Syntax
-
-```duso
-grayscale_image(image)
-```
+`grayscale_image(image)`
 
 ## Parameters
 

@@ -5,8 +5,6 @@ Remove and return the first element of an array. Mutates the array in place.
 
 `shift(array)`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to modify

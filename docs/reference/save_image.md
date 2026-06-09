@@ -1,12 +1,8 @@
-# save_image
+# save_image()
 
 Save a binary image to a file.
 
-## Syntax
-
-```duso
-save_image(binary, filename)
-```
+`save_image(binary, filename)`
 
 ## Parameters
 
@@ -53,8 +49,8 @@ save_image(quarter, "quarter.jpg")
 
 ## See Also
 
-- [save_binary()](save_binary.md) - Save raw binary data
-- [load_image()](load_image.md) - Load images with metadata
-- [scale_image()](scale_image.md) - Resize images
-- [crop_image()](crop_image.md) - Extract image regions
-- [convert_image()](convert_image.md) - Convert between formats
+- [save_binary()](/docs/reference/save_binary.md) - Save raw binary data
+- [load_image()](/docs/reference/load_image.md) - Load images with metadata
+- [scale_image()](/docs/reference/scale_image.md) - Resize images
+- [crop_image()](/docs/reference/crop_image.md) - Extract image regions
+- [convert_image()](/docs/reference/convert_image.md) - Convert between formats

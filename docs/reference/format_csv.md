@@ -5,8 +5,6 @@ Format an array of arrays into a CSV string.
 
 `format_csv(array [, delimiter])`
 
-```
-
 ## Parameters
 
 - `array` (array) - Array of arrays, where each inner array is a row of fields

@@ -5,8 +5,6 @@ Get the current working directory.
 
 `current_dir()`
 
-```
-
 ## Parameters
 
 None

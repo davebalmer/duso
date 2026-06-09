@@ -5,8 +5,6 @@ Move a file from source to destination.
 
 `move_file(src, dst)`
 
-```
-
 ## Parameters
 
 - `src` (string) - Source file path

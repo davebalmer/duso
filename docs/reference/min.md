@@ -5,8 +5,6 @@ Find the minimum value among multiple numbers.
 
 `min(...numbers)`
 
-```
-
 ## Parameters
 
 - `...numbers` - One or more numbers to compare

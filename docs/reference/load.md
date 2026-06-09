@@ -5,8 +5,6 @@ Read the contents of a file as a string. Available in `duso` CLI only.
 
 `load(filename)`
 
-```
-
 ## Parameters
 
 - `filename` (string) - Path to the file, relative to the script's directory

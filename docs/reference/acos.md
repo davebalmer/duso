@@ -5,8 +5,6 @@ Calculate the inverse cosine (arccosine) of a value in radians.
 
 `acos(x)`
 
-```
-
 ## Parameters
 
 - `x` (number) - Value between -1 and 1

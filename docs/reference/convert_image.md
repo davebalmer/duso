@@ -1,12 +1,8 @@
-# convert_image
+# convert_image()
 
 Convert an image between different formats (PNG, JPEG, GIF).
 
-## Syntax
-
-```duso
-convert_image(image, format)
-```
+`convert_image(image, format)`
 
 ## Parameters
 

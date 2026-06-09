@@ -5,8 +5,6 @@ Throw an error with a message. Includes call stack and position information for 
 
 `throw(message)`
 
-```
-
 ## Parameters
 
 - `message` (any) - The error message or value. Can be any type: string (standard), object, array, number, etc. If omitted, defaults to "unknown error"

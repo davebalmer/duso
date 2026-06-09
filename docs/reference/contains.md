@@ -5,8 +5,6 @@ Check if a string contains a pattern or substring. Supports both literal strings
 
 `contains(string, pattern [, ignore_case])`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to search in

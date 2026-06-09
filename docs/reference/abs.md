@@ -5,8 +5,6 @@ Get the absolute value of a number.
 
 `abs(number)`
 
-```
-
 ## Parameters
 
 - `number` (number) - The number to convert

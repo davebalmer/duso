@@ -5,8 +5,6 @@ Convert a string to lowercase.
 
 `lower(string)`
 
-```
-
 ## Parameters
 
 - `string` (string) - The string to convert

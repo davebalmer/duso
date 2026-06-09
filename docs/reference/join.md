@@ -5,8 +5,6 @@ Join array elements into a single string with a separator.
 
 `join(array, separator)`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to join

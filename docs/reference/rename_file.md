@@ -5,8 +5,6 @@ Rename or move a file.
 
 `rename_file(old_path, new_path)`
 
-```
-
 ## Parameters
 
 - `old_path` (string) - Current file path

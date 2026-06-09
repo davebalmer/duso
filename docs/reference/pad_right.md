@@ -5,8 +5,6 @@ Pad a string on the right with a character to reach a desired width.
 
 `pad_right(str, width [, char])`
 
-```
-
 ## Parameters
 
 - `str` (string) - The string to pad

@@ -5,8 +5,6 @@ Verify an EC (elliptic curve) signature using ES256 (ECDSA with SHA256).
 
 `verify_ec(data, signature, public_key_pem)`
 
-```
-
 ## Parameters
 
 - `data` (string | binary) - The data that was signed

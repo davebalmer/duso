@@ -5,8 +5,6 @@ Convert JWK (JSON Web Key) coordinates (x, y) to a PEM-encoded EC public key (P-
 
 `ec_from_jwk(x, y)`
 
-```
-
 ## Parameters
 
 - `x` (string) - Base64url-encoded X coordinate (from JWK, P-256 point)

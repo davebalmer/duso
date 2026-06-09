@@ -5,8 +5,6 @@ Add one or more elements to the beginning of an array. Mutates the array in plac
 
 `unshift(array, value1 [, value2, ...])`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to modify

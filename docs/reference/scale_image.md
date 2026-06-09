@@ -1,12 +1,8 @@
-# scale_image
+# scale_image()
 
 Scale an image to a target size with different aspect ratio handling modes.
 
-## Syntax
-
-```duso
-scale_image(image, max_x, max_y, mode)
-```
+`scale_image(image, max_x, max_y, mode)`
 
 ## Parameters
 

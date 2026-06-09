@@ -5,8 +5,6 @@ Raise a number to a power (exponentiation).
 
 `pow(base, exponent)`
 
-```
-
 ## Parameters
 
 - `base` (number) - The base number

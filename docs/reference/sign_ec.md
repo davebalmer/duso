@@ -5,8 +5,6 @@ Sign data with an EC (elliptic curve) private key using ES256 (ECDSA with SHA256
 
 `sign_ec(data, private_key_pem)`
 
-```
-
 ## Parameters
 
 - `data` (string | binary) - The data to sign

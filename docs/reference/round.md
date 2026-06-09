@@ -5,8 +5,6 @@ Round a number to the nearest integer.
 
 `round(number)`
 
-```
-
 ## Parameters
 
 - `number` (number) - The number to round

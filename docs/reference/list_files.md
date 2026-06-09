@@ -5,8 +5,6 @@ List files matching a wildcard pattern.
 
 `list_files(pattern)`
 
-```
-
 ## Parameters
 
 - `pattern` (string) - Wildcard pattern to match files, relative to the script's directory

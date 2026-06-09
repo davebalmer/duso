@@ -5,8 +5,6 @@ Create a thread-safe in-memory key/value store with optional binary persistence.
 
 `datastore(namespace [, config])`
 
-```
-
 ## Parameters
 
 - `namespace` (string) - Namespace identifier. Multiple scripts access the same store via same namespace

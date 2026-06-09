@@ -5,8 +5,6 @@ Calculate the square root of a number.
 
 `sqrt(number)`
 
-```
-
 ## Parameters
 
 - `number` (number) - The number to get the square root of

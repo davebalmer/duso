@@ -5,8 +5,6 @@ Transform each element in an array by applying a function.
 
 `map(array, function)`
 
-```
-
 ## Parameters
 
 - `array` (array) - The array to transform

@@ -1,12 +1,8 @@
-# load_binary
+# load_binary()
 
 Load a file as immutable binary data.
 
-## Syntax
-
-```duso
-load_binary(filename)
-```
+`load_binary(filename)`
 
 ## Parameters
 

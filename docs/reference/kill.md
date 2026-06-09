@@ -5,8 +5,6 @@ Terminate a spawned process by sending it a cancellation signal.
 
 `kill(pid)`
 
-```
-
 ## Parameters
 
 - `pid` (number) - The process ID returned by spawn()

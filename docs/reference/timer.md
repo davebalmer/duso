@@ -5,8 +5,6 @@ Get the current time with sub-second precision for benchmarking and performance 
 
 `timer()`
 
-```
-
 ## Parameters
 
 None

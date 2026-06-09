@@ -5,8 +5,6 @@ Display an animated spinner with a status message. Useful for long-running opera
 
 `busy(message)`
 
-```
-
 ## Parameters
 
 - `message` - String message to display with the spinner (required)

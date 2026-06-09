@@ -759,7 +759,7 @@ func copyTemplateDir(srcPath, dstPath string) error {
 }
 
 // lintFiles lints one or more Duso script files
-func lintFiles(files []string) error {
+func lintFiles(files []string, ignoreWarnings bool) error {
 	for _, file := range files {
 		source, err := os.ReadFile(file)
 		if err != nil {
@@ -775,6 +775,10 @@ func lintFiles(files []string) error {
 		}
 
 		for _, diag := range diagnostics {
+			// Skip warnings if ignoreWarnings flag is set
+			if ignoreWarnings && diag.Severity == 1 {
+				continue
+			}
 			severity := "error"
 			if diag.Severity == 1 {
 				severity = "warning"
@@ -783,6 +787,90 @@ func lintFiles(files []string) error {
 		}
 	}
 	return nil
+}
+
+// lintMarkdown extracts duso code blocks from markdown and lints them
+func lintMarkdown(files []string, ignoreWarnings bool) error {
+	for _, file := range files {
+		var source []byte
+		var err error
+
+		if file == "/dev/stdin" {
+			source, err = io.ReadAll(os.Stdin)
+		} else {
+			source, err = os.ReadFile(file)
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", file, err)
+			continue
+		}
+
+		// Extract and lint all duso blocks in markdown
+		lintMarkdownContent(file, string(source), ignoreWarnings)
+	}
+	return nil
+}
+
+// lintMarkdownContent extracts duso code blocks from markdown content and lints them
+func lintMarkdownContent(filename string, content string, ignoreWarnings bool) {
+	lines := strings.Split(content, "\n")
+	var inDusoBlock bool
+	var blockStart int
+	var blockLines []string
+
+	for lineNum, line := range lines {
+		if line == "```duso" {
+			inDusoBlock = true
+			blockStart = lineNum + 1
+			blockLines = []string{}
+			continue
+		}
+
+		if strings.HasPrefix(line, "```") && inDusoBlock {
+			inDusoBlock = false
+
+			// Lint this block
+			blockContent := strings.Join(blockLines, "\n")
+			if blockContent != "" {
+				diagnostics, err := cli.LintScript(filename, blockContent)
+				if err != nil {
+					// Error from parser - extract line:col and add to blockStart
+					errStr := err.Error()
+					parts := strings.Split(errStr, ":")
+					if len(parts) >= 4 {
+						if errLine, errErr := strconv.Atoi(strings.TrimSpace(parts[1])); errErr == nil {
+							actualLine := blockStart - 1 + errLine
+							remainder := strings.Join(parts[2:], ":")
+							fmt.Fprintf(os.Stderr, "%s:%d:%s\n", filename, actualLine, remainder)
+						} else {
+							fmt.Fprintf(os.Stderr, "%s:%d: %v\n", filename, blockStart, err)
+						}
+					} else {
+						fmt.Fprintf(os.Stderr, "%s:%d: %v\n", filename, blockStart, err)
+					}
+					continue
+				}
+
+				for _, diag := range diagnostics {
+					// Skip warnings if ignoreWarnings flag is set
+					if ignoreWarnings && diag.Severity == 1 {
+						continue
+					}
+					severity := "error"
+					if diag.Severity == 1 {
+						severity = "warning"
+					}
+					actualLine := blockStart - 1 + diag.Line
+					fmt.Printf("%s:%d:%d: %s: %s\n", filename, actualLine, diag.Column, severity, diag.Message)
+				}
+			}
+			continue
+		}
+
+		if inDusoBlock {
+			blockLines = append(blockLines, line)
+		}
+	}
 }
 
 // extractFiles extracts files from embedded filesystem to local disk
@@ -964,6 +1052,7 @@ func main() {
 	lspTCP := flag.String("lsp-tcp", "", "Start LSP server on TCP port (e.g., -lsp-tcp 9999)")
 	doInstall := flag.Bool("install", false, "Install duso binary to system PATH")
 	doLint := flag.Bool("lint", false, "Lint Duso scripts for errors and warnings")
+	doLintMD := flag.Bool("lint-md", false, "Lint Duso code blocks in markdown files")
 
 	// Allow unknown flags to pass through to scripts
 	flag.CommandLine.Init(flag.CommandLine.Name(), flag.ContinueOnError)
@@ -1062,12 +1151,53 @@ func main() {
 
 	// Handle -lint flag
 	if *doLint {
-		files := flag.Args()
+		args := flag.Args()
+		ignoreWarnings := false
+		files := []string{}
+		for _, arg := range args {
+			if arg == "-ignore-warnings" {
+				ignoreWarnings = true
+			} else {
+				files = append(files, arg)
+			}
+		}
 		if len(files) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: -lint requires at least one file\n")
 			os.Exit(1)
 		}
-		if err := lintFiles(files); err != nil {
+		if err := lintFiles(files, ignoreWarnings); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Handle -lint-md flag
+	if *doLintMD {
+		args := flag.Args()
+		ignoreWarnings := false
+		files := []string{}
+
+		// Check all command-line args for -ignore-warnings (including before -lint-md)
+		for _, arg := range os.Args[1:] {
+			if arg == "-ignore-warnings" {
+				ignoreWarnings = true
+				break
+			}
+		}
+
+		// Collect files from flag.Args()
+		for _, arg := range args {
+			if arg != "-ignore-warnings" {
+				files = append(files, arg)
+			}
+		}
+
+		// If no files specified, read from stdin
+		if len(files) == 0 {
+			files = append(files, "/dev/stdin")
+		}
+		if err := lintMarkdown(files, ignoreWarnings); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

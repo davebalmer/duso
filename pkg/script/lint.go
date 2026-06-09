@@ -63,13 +63,33 @@ func NewLintAnalyzer(program *Program, filename string) *LintAnalyzer {
 
 // Analyze performs all linting checks
 func (a *LintAnalyzer) Analyze() []*LintDiagnostic {
-	// Single pass: collect definitions and check uses
+	// Pre-pass: collect top-level definitions (functions and variables at module level)
+	// This allows forward references within the same scope
+	for _, node := range a.program.Statements {
+		a.collectTopLevelDefinitions(node)
+	}
+
+	// Regular pass: check uses and report issues
 	a.walkNodes(a.program.Statements)
 
 	// Report unused definitions
 	a.reportUnusedDefinitions(a.currentScope)
 
 	return a.diagnostics
+}
+
+// collectTopLevelDefinitions collects function and variable definitions at the current scope level
+func (a *LintAnalyzer) collectTopLevelDefinitions(node Node) {
+	switch n := node.(type) {
+	case *FunctionDef:
+		a.defineSymbol(n.Name, "function", n.Pos)
+	case *AssignStatement:
+		if ident, ok := n.Target.(*Identifier); ok {
+			if !a.symbolExists(ident.Name) {
+				a.defineSymbol(ident.Name, "variable", ident.Pos)
+			}
+		}
+	}
 }
 
 // walkNodes walks a list of nodes and processes them, checking for unreachable code

@@ -12,30 +12,28 @@
 md = require("markdown")
 
 // Initialize the swarm datastore
+bees = 10
 swarm = datastore("swarm")
-swarm.set("bees", 0)
+swarm.set("done", 0)
 swarm.set("buzzes", 0)
 
 print("🐝 Spawning bee swarm...")
 
-// Spawn 10 busy bees
-for i = 1, 10 do
-  spawn("worker.du", {bee_id = i, swarm = "swarm"})
+// Spawn busy bees
+for i = 1, bees do
+  spawn("worker.du", {bee_id = i})
 end
 
 print("🐝 Swarm initialized. Waiting for bees to work...")
-sleep(2)
+swarm.wait("done", bees)
 
 // Check results
-bee_count = swarm.get("bees")
 buzz_count = swarm.get("buzzes")
 
 // use multi-line string w template to print results
 print(md.ansi("""
   # Bee Report
 
-  - Total bees spawned: {{spawn_count}}
-  - Bees counted: {{bee_count}}
+  - Total bees spawned: {{bees}}
   - Total buzzes: {{buzz_count}}
-  - Average buzzes per bee: {{buzz_count / bee_count}}
 """))

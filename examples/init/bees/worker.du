@@ -12,13 +12,12 @@ bee_id = ctx.bee_id
 // Get the swarm datastore
 swarm = datastore("swarm")
 
-swarm.increment("bees")
-
 // This bee does some work
-for i = 1, 5 do
+buzzes = ceil(random() * 10)
+for i = 1, buzzes do
+  sleep(random() * 0.5)
   swarm.increment("buzzes")
-  sleep(0.1)
 end
 
-// Exit and signal completion
-exit({status = "done", bee_id = bee_id})
+// Signal completion
+swarm.increment("done")

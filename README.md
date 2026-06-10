@@ -4,71 +4,75 @@
 
 # Duso
 
-**Duso is a "Server Engine".** It is its own stack built from the ground up to make server-side apps. Duso installs and runs in a single 10MB binary that includes its own libraries, docs, and code examples. It has a complete runtime with a great concurrency model all built with Go. Running on top of that is a simple scripting language that's AI and Human friendly. Scripts are hot-reloaded and cached making your developer experience smooth and fast. When you're ready to deploy, bundle your app scripts into your own custom Duso binary and ship it.
+**A complete server runtime. One 10MB binary with everything built in. No npm, no dependencies, no bloat. A simple scripting language powered by Go, with native goroutine concurrency and instant hot reload.**
 
-**Download pre-built binaries for macOS, Linux, and Windows at [duso.rocks](https://duso.rocks).** Or scroll down a bit to build from source.
+## Download & Install
 
-## Key Features
+**Pre-built binaries:** [duso.rocks/download](https://duso.rocks/download)
 
-- 🔋 **Download and Run:** One small binary. Everything inside. No npm, pip, or cargo needed.
-- ⚡ **Develop Fast:** Hot-reloaded scripts with caching. No compile step, just edit and test.
-- 📚 **Learn Quickly:** Simple, consistent scripting language. Full docs and examples built in.
-- ✨ **Use and Integrate AI:** Let your AI code faster in a language made for it. Connect your app to popular AI agents.
-- 🌐 **Build Web and API Servers:** Templates, routing, JSON, SSL, JWT, CORS, RSA, websockets. Fully featured and built-in.
-- 🗄️ **Use Powerful Datastores:** ACID-compliant NoSQL datastores with thread-safe operations for process coordination, caching, and session state.
-- 🗄️ **SQL Database Support:** Built-in MySQL, MariaDB, and TiDB drivers for relational data at scale.
-- 🤖 **Connect to Any AI:** Built-in integrations with Anthropic, OpenAI, Microsoft Azure, Groq, and Ollama.
-- 🔌 **Growing Vendor Support:** CouchDB, Stripe, and expanding ecosystem of first-party integrations.
-- 🔒 **Secure Local Files:** Sandbox mode restricts file access and uses virtual filesystem for safety.
-- 🪲 **Debug Concurrent Code:** Breakpoints, stack traces, code context. Handle one issue at a time.
-- 📦 **Bundle into a Single Binary:** Wrap your app scripts into a standalone executable. Extend with Go if needed.
-- 🚀 **Deploy Anywhere:** Supports Linux, macOS, and Windows. One build, every platform.
-- 📄 **New Script Language:** Simple syntax. Consistent naming. Predictable behavior. Reduced complexity.
-- 📖 **Complete Runtime Library:** Full standard library and community contributions. Everything included in each binary release.
-- 🐹 **Powered by Go:** Duso is written in the language made by Google for solid and efficient concurrency at scale.
-- 💎 **Open Source:** Apache 2.0 licensed. Community-driven and fully transparent.
-
-## Getting Started
-
-### Hook up your AI:
+Or install with Homebrew:
 
 ```bash
-duso -read
-duso -doc claude
+brew install duso-org/tap/duso
 ```
 
-### Hook up your Human:
+Or build from source:
 
-Start with a simple sample project.
-
+**Linux & macOS:**
 ```bash
-duso -init myproject
+git clone https://github.com/duso-org/duso.git
+cd duso
+./build.sh
 ```
 
-### Run a script:
+**Windows PowerShell:**
+```powershell
+git clone https://github.com/duso-org/duso.git
+cd duso
+.\build.ps1
+```
+
+Then optionally symlink it (Linux & macOS):
+```bash
+ln -s $(pwd)/bin/duso /usr/local/bin/duso
+```
+
+## Quick Start
+
+### Run a script
 
 ```bash
-# run a script file
-duso examples/agents/self-aware-claude.du
-# run a command inline
-duso -c 'print("1 + 2 =", 1 + 2)'
-# enter interactive REPL mode
+duso script.du
+```
+
+### Run inline code
+
+```bash
+duso -c 'print("Hello, World!")'
+```
+
+### Interactive REPL mode
+
+```bash
 duso -repl
 ```
 
-## Examples
-
-### One-line web server
-
-Start an HTTP server with one command:
+### One-liner web server
 
 ```bash
 duso -c 'http_server().start()'
 ```
 
-### AI chatbot
+Open `http://localhost:8080`. You have a working server.
 
-Build an interactive chatbot that uses AI:
+### Basic AI prompt
+
+```duso
+ai = require("claude")
+print(ai.prompt("What is 2+2?"))
+```
+
+### Interactive chatbot
 
 ```duso
 ai = require("openai")
@@ -85,8 +89,6 @@ end
 ```
 
 ### AI workflow with parallel experts
-
-Ask a panel of AI experts and synthesize their responses:
 
 ```duso
 ai = require("claude")
@@ -108,160 +110,165 @@ responses = parallel(map(experts, function(expert)
   end
 end))
 
-for i = 0, 3 do
-  responses[i] = "{{experts[i]}} says: {{responses[i]}}"
-end
-
 busy("summarizing...")
 summary = ai.prompt("""
   Summarize these responses:
-
   {{join(responses, "\n\n---\n\n")}}
-
-  List 3 the things they have in common.
+  
+  List 3 things they have in common.
   Then list the 3 things that are the most different.
 """)
 
 print(markdown_ansi(summary))
 ```
 
-### API server
-
-Build a complete REST API server with routing and data persistence:
+### REST API with database
 
 ```duso
 // server.du
-port = 3000
-server = http_server({port = port})
+server = http_server({port = 3000})
 
-server.route("GET", "/api/user/:id", "user-get.du")
-server.route("POST", "/api/user", "user-post.du")
+server.route("GET", "/users/:id", "get-user.du")
+server.route("POST", "/users", "create-user.du")
 
-print("Server running at http://localhost:{{port}}")
+print("Running on :3000")
 server.start()
 ```
 
 ```duso
-// user-get.du
+// get-user.du
 ctx = context()
-req = ctx.request()
-res = ctx.response()
-
-user = datastore("users").get(req.params.id)
-
-if not user then res.error(404) end
-
-res.json({success = true, data = user}, 200)
+user = datastore("users").get(ctx.request().params.id)
+ctx.response().json(user)
 ```
 
 ```duso
-// user-post.du
+// create-user.du
 ctx = context()
-req = ctx.request()
-res = ctx.response()
-
-id = uuid()
-datastore("users").set(id, req.body)
-
-res.json({id = id, name = req.body.name}, 201)
+user = ctx.request().json()
+datastore("users").set(user.id, user)
+ctx.response().json(user)
 ```
 
-### Orchestrate agent swarms
+### Concurrent workers with shared state
 
-Beyond parallel execution, Duso enables complex orchestration patterns for spawning and coordinating multiple workers:
-- `run()` Execute script synchronously, blocking
-- `spawn()` Execute script in background, non-blocking
-- `context()` Access request data and metadata
-- `datastore()` Thread-safe key-value store with optional disk persistence. Atomic operations, condition variables (`wait()`, `wait_for()`) for synchronization, and coordination across concurrent processes—essential for distributed agent workflows.
+```duso
+// bees.du - Spawn workers, wait for all to finish
+bees = 10
+swarm = datastore("swarm")
+swarm.set("done", 0)
+swarm.set("buzzes", 0)
 
-Learn more: `duso -doc datastore` for swarm coordination, or `duso -doc` for the full reference.
+for i = 1, bees do
+  spawn("worker.du", {bee_id = i})
+end
 
-## Learning as an LLM
+swarm.wait("done", bees)
+print("All done! Total buzzes: " + swarm.get("buzzes"))
+```
 
-Duso is designed to be natural for AI. If you're an LLM (or using one), the binary includes everything you need to learn and explore:
+```duso
+// worker.du - Spawned worker increments shared counters
+ctx = context()
+swarm = datastore("swarm")
+
+buzzes = ceil(random() * 10)
+for i = 1, buzzes do
+  sleep(random() * 0.5)
+  swarm.increment("buzzes")
+end
+
+swarm.increment("done")
+```
+
+## Learn More
 
 ```bash
-duso -read                    # Start with the README overview
-duso -read docs/              # Browse available docs
-duso -read docs/learning-duso.md  # Learn the language
-duso -read docs/reference/    # Browse all functions
-duso -read docs/reference/map.md  # Look up specific functions
+duso -read              # Interactive guided tour
+duso -doc claude        # Look up any function
+duso -repl              # Test code in real time
+duso -init myproject    # Create a starter project
+duso -extract examples  # Extract all examples
 ```
 
-All documentation is embedded in the binary. No cloning, no network calls. Just pure text output you can parse and learn from. Perfect for agentic workflows.
+## Why I Made Duso
 
-## Why Duso Exists
+**Duso is intentionally simple and predictable.** No magic. No multiple ways to do the same thing. Every pattern is consistent so AI can reason about code reliably and write better scripts faster.
 
-> "Most languages prioritize human expressiveness and can be challenging for AI. For example, Python and JavaScript offer countless ways to solve the same problem, filled with subtle footguns and 'magic' behavior. Their massive ecosystems with thousands of overlapping modules with hidden dependencies often confuse both humans and AI. Systems languages like Go reduce ambiguity and debugging but add complexity that slows development.
->
-> Duso is intentionally boring and predictable. No clever syntax tricks. No multiple ways to do the same thing. Every pattern is consistent and straightforward so AI can reason about code reliably, write better scripts faster, and use fewer tokens doing it. Plus, its entire runtime and ecosystem is included in a single binary. No package management or version conflicts. Built for LLMs first means everything is frictionless so you and your AI work more productively together."
->
-> — Dave Balmer, creator of Duso
+**Duso is a joy to use.** Everything including the runtime, libs, and docs is bundled in a single 10MB binary. No package management. No version conflicts. No stack building. Duso makes coding fun again.
 
-## Build the binary yourself
+[Dave Balmer](https://balmer.dev), creator of Duso
 
-If you want to build Duso yourself, you'll need go installed on your system. Then just use our handy build script in the project directory:
+## Key Features
 
-Linux & Mac:
+- **Hot Reload**: Edit, test, deploy. Same binary.
+- **One Binary**: Everything included. No npm, pip, cargo.
+- **Simple Concurrency**: Goroutines without the complexity. `spawn()` and `parallel()`.
+- **Full Web Stack**: HTTP, routing, WebSockets, SSL, CORS, JWT, templates built in.
+- **General Purpose**: Build APIs, web servers, scripts, tools, background jobs, batch processors.
+- **Built-in Datastore**: ACID NoSQL key-value store, in-memory or persisted, perfect for caching and state.
+- **SQL Support**: MySQL, MariaDB, TiDB, CouchDB drivers built in.
+- **AI Integrations**: Claude, OpenAI, Gemini, Groq, Ollama, Azure AI. All built in.
+- **Docs in Binary**: No internet needed. `duso -doc` for any function.
+- **Integrated Debugger**: Breakpoints, stack traces, concurrent-aware.
+- **Linter & LSP Server**: Built-in static analysis and language server for IDE integration.
+- **Editor Extensions**: Syntax highlighting and code completion for VS Code, JetBrains, Vim.
+- **AI-Friendly Design**: Simple, readable syntax that LLM agents understand and extend naturally.
+- **Single-Binary Deployment**: Linux, macOS, Windows. Same build, every platform.
+- **Open Source**: Apache 2.0. Community-driven.
 
-```bash
-./build.sh
-```
+## Full Documentation
 
-Windows Power Shell:
+- **Website:** [duso.rocks](https://duso.rocks)
+- **Learning Guide:** [docs/learning-duso.md](/docs/learning-duso.md)
+- **Built-in:** `duso -read` or `duso -doc <topic>`
 
-```
-.\build.ps1
-```
+## Community Libraries
 
-This handles Go embed setup, fetches the version from git, and builds the binary to `bin/duso`.
+Built-in integrations for:
 
-**Optional:** Make it available everywhere by creating a symlink on Linux & Mac:
+- **AI:** Claude, OpenAI, Gemini, Groq, Ollama, Azure AI, DeepSeek
+- **Databases:** MySQL, MariaDB, TiDB, CouchDB
+- **Payments:** Stripe
+- **Testing & Utils:** Icons (Phospher), Zero Language Model (zlm)
 
-```bash
-ln -s $(pwd)/bin/duso /usr/local/bin/duso
-```
+See [contrib/](/contrib/) for full list and docs.
 
 ## Contributing
 
-**We need you.** Duso thrives on community contributions.
+Duso is open source under Apache 2.0. Contributions welcome:
 
-- **Everyone**: Report bugs, broken docs, share cool examples. Even forking the repo will increase our exposure and help us get syntax highlighting for `.du` files in GitHub!
-- **Module authors**: Write a stdlib or contrib module (database clients, API wrappers, etc.). These are what make the runtime actually useful to real people.
-- **Go developers**: Performance optimizations, new built-ins, ideas for the core runtime. Help us make Duso faster and more powerful.
+1. Fork [github.com/duso-org/duso](https://github.com/duso-org/duso)
+2. Create a branch (`git checkout -b feature/thing`)
+3. Commit changes (`git commit -am 'add thing'`)
+4. Push to branch (`git push origin feature/thing`)
+5. Open a Pull Request
 
-- [CONTRIBUTING.md](/CONTRIBUTING.md) for contributing guidelines
-- [COMMUNITY.md](/COMMUNITY.md) for community guidelines
+See [CONTRIBUTING.md](/CONTRIBUTING.md) and [COMMUNITY.md](/COMMUNITY.md) for guidelines.
 
 ## Contributors
 
-- Dave Balmer: design, development, documentation, dedication
+- [Dave Balmer](https://balmer.dev): design, development, documentation, dedication
 
 ## Sponsors
 
 - **[Shannan.dev](https://shannan.dev)**: Provides AI-driven business intelligence solutions
 - **[Ludonode](https://ludonode.com)**: Provides agentic development and consulting
 
-## Learn More
+## FAQ
 
-- **[Learning Duso](/docs/learning-duso.md)**: Guided tour of the language with examples
-- **[Function Reference](/docs/reference/index.md)**: All 100+ built-in functions with examples
-- **[Internals](/docs/internals.md)**: Architecture and runtime design
-- **[Embedding Guide](/docs/embedding/README.md)**: Using Duso in Go applications
-- Lots of examples in the, well, `examples` directory
+**Q: Is Duso production-ready?**
+A: Yes.
+
+**Q: How do I deploy Duso?**
+A: It's one binary. `scp` it to a server and run it. Alternatively, containerize it in Docker or deploy to Fly.io, Railway, or Heroku.
+
+**Q: Can I bundle scripts into the binary?**
+A: Yes. Use `duso -bundle` to embed scripts, configs, and static files into a single executable.
+
+**Q: Can I extend Duso with Go?**
+A: Yes. The language is designed to be extended. You can write custom builtins in Go.
 
 ## License
 
-Copyright 2026 Ludonode LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Apache 2.0. See [LICENSE](/LICENSE).

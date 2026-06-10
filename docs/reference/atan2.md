@@ -2,7 +2,6 @@
 
 Calculate the angle (in radians) of a point (x, y) relative to the origin. Handles all four quadrants correctly.
 
-
 `atan2(y, x)`
 
 ## Parameters

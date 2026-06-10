@@ -2,7 +2,6 @@
 
 List the contents of a directory.
 
-
 `list_dir(path)`
 
 ## Parameters

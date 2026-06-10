@@ -2,7 +2,6 @@
 
 Output values to stdout, separated by spaces, with a newline at the end.
 
-
 `print(...args)`
 
 ## Parameters

@@ -2,7 +2,6 @@
 
 Join array elements into a single string with a separator.
 
-
 `join(array, separator)`
 
 ## Parameters

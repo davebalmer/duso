@@ -2,7 +2,6 @@
 
 Get an array of all values in an object.
 
-
 `values(object)`
 
 ## Parameters

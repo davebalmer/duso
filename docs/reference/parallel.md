@@ -2,7 +2,6 @@
 
 Execute functions concurrently and collect results in parallel.
 
-
 `parallel(function1, function2, ...)       // Varargs (primary)`
 
 parallel(array_of_functions)              // Array form

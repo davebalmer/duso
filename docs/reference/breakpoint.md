@@ -2,7 +2,6 @@
 
 Pause execution and enter interactive debug mode. A core language feature that can be enabled with the `DebugMode` setting (set automatically by the `-debug` CLI flag).
 
-
 `breakpoint()`
 `breakpoint(value1, value2, ...)`
 

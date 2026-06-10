@@ -2,7 +2,6 @@
 
 Transform each element in an array by applying a function.
 
-
 `map(array, function)`
 
 ## Parameters

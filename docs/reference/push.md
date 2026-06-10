@@ -2,7 +2,6 @@
 
 Add one or more elements to the end of an array. Mutates the array in place and returns the new length.
 
-
 `push(array, value1 [, value2, ...])`
 
 ## Parameters

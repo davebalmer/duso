@@ -2,7 +2,6 @@
 
 Calculate the logarithm base 10 of a number.
 
-
 `log(x)`
 
 ## Parameters

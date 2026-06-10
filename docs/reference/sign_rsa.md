@@ -2,7 +2,6 @@
 
 Sign data with an RSA private key using SHA256-PKCS1v15.
 
-
 `sign_rsa(data, private_key_pem)`
 
 ## Parameters

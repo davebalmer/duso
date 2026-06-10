@@ -1,4 +1,4 @@
-# Array
+# array
 
 Arrays are ordered lists of values, 0-indexed. Elements can be any type.
 

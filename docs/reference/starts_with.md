@@ -2,7 +2,6 @@
 
 Check if a string starts with a given prefix.
 
-
 `starts_with(string, prefix [, ignore_case])`
 
 ## Parameters

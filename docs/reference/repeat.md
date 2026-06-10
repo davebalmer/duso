@@ -2,7 +2,6 @@
 
 Repeat a string multiple times.
 
-
 `repeat(string, count)`
 
 ## Parameters

@@ -2,7 +2,6 @@
 
 Keep only array elements that match a predicate function.
 
-
 `filter(array, function)`
 
 ## Parameters

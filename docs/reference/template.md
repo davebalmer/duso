@@ -2,7 +2,6 @@
 
 Create a reusable template function from a string with `{{expression}}` syntax.
 
-
 `template(string) → function`
 
 ## Parameters

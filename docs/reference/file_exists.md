@@ -2,7 +2,6 @@
 
 Check if a file or directory exists.
 
-
 `file_exists(path)`
 
 ## Parameters

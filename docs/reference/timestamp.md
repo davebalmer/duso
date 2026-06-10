@@ -2,7 +2,6 @@
 
 Get the current Unix timestamp in UTC or a specific timezone/offset.
 
-
 `timestamp()`
 
 timestamp(timezone)

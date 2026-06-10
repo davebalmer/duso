@@ -2,7 +2,6 @@
 
 Check if a string contains a pattern or substring. Supports both literal strings and regular expressions.
 
-
 `contains(string, pattern [, ignore_case])`
 
 ## Parameters

@@ -2,7 +2,6 @@
 
 Make HTTP requests using a JavaScript-style fetch API. Returns immediately (synchronous from script perspective, but Go handles async HTTP internally).
 
-
 `fetch(url [, options])`
 
 ## Parameters

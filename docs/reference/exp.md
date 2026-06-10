@@ -2,7 +2,6 @@
 
 Calculate e raised to a power (exponential growth).
 
-
 `exp(x)`
 
 ## Parameters

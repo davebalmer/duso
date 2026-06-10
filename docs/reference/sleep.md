@@ -2,7 +2,6 @@
 
 Pause execution for a specified duration.
 
-
 `sleep(seconds)`
 
 ## Parameters

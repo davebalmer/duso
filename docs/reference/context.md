@@ -2,7 +2,6 @@
 
 Get runtime context information. Returns contextual data from the surrounding environment (HTTP request, spawned script parameters, etc.) or `nil` if no context is available.
 
-
 `context()`
 
 ## Parameters

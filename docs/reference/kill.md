@@ -2,7 +2,6 @@
 
 Terminate a spawned process by sending it a cancellation signal.
 
-
 `kill(pid)`
 
 ## Parameters

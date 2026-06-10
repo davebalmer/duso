@@ -2,7 +2,6 @@
 
 Get the type of a file or directory.
 
-
 `file_type(path)`
 
 ## Parameters

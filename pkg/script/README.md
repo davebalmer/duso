@@ -2,7 +2,6 @@
 
 A lightweight, embeddable scripting language for agent orchestration. Duso is designed for LLM integration and multi-agent workflows.
 
-
 ## Features
 
 - **Loosely-typed**: Implicit type coercion where sensible

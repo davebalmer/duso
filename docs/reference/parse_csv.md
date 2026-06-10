@@ -2,7 +2,6 @@
 
 Parse a CSV string into an array of arrays.
 
-
 `parse_csv(str [, delimiter])`
 
 ## Parameters

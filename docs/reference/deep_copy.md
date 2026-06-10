@@ -2,7 +2,6 @@
 
 Create a deep (recursive) copy of a value. Arrays and objects are recursively copied; functions are removed (they don't work out of scope).
 
-
 `deep_copy(value)`
 
 ## Parameters

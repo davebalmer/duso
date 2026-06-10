@@ -2,7 +2,6 @@
 
 Terminate the current script and optionally return a value to the caller.
 
-
 `exit([value])`
 
 ## Parameters

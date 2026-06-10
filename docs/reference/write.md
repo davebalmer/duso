@@ -2,7 +2,6 @@
 
 Output values to stdout, separated by spaces, without adding a newline at the end.
 
-
 `write(...args)`
 
 ## Parameters

@@ -2,7 +2,6 @@
 
 Compute a cryptographic hash of data using the specified algorithm.
 
-
 `hash(algo, data)`
 
 ## Parameters

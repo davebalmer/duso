@@ -2,7 +2,6 @@
 
 Render markdown text to HTML.
 
-
 `markdown_html(text, options)`
 
 ## Parameters

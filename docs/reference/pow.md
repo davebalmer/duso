@@ -2,7 +2,6 @@
 
 Raise a number to a power (exponentiation).
 
-
 `pow(base, exponent)`
 
 ## Parameters

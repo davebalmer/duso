@@ -2,10 +2,7 @@
 
 Check a condition and throw an error if false. Essential for testing and validation.
 
-
-```
-assert(condition [, message])
-```
+`assert(condition [, message])`
 
 ## Parameters
 

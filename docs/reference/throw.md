@@ -2,7 +2,6 @@
 
 Throw an error with a message. Includes call stack and position information for debugging.
 
-
 `throw(message)`
 
 ## Parameters

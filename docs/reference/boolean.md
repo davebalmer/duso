@@ -1,4 +1,4 @@
-# Boolean
+# boolean
 
 Booleans represent truth values: `true` or `false`. Used in conditions and logical operations.
 
@@ -64,4 +64,3 @@ b = tobool(0)       // false
 b = tobool("text")  // true
 b = tobool("")      // false
 ```
-

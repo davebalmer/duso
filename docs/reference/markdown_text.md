@@ -2,7 +2,6 @@
 
 Render markdown text to plain text output without ANSI color codes or HTML tags.
 
-
 `markdown_text(text)`
 
 ## Parameters

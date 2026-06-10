@@ -2,7 +2,6 @@
 
 Convert a string to uppercase.
 
-
 `upper(string)`
 
 ## Parameters

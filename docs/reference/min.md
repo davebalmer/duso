@@ -2,7 +2,6 @@
 
 Find the minimum value among multiple numbers.
 
-
 `min(...numbers)`
 
 ## Parameters

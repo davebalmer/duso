@@ -2,7 +2,6 @@
 
 Read a line of text from standard input (user input).
 
-
 `input([prompt])`
 
 ## Parameters

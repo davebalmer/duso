@@ -2,7 +2,6 @@
 
 Load a module in an isolated scope and return its exports. Available in `duso` CLI only.
 
-
 `require(moduleName)`
 
 ## Parameters

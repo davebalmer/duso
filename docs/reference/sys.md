@@ -2,7 +2,6 @@
 
 Access values from the sys datastore. Provides a convenient interface to read system information including CLI flags, configuration, and other runtime data. Available in `duso` CLI only.
 
-
 `sys(key)`
 
 ## Parameters

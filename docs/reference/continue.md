@@ -4,9 +4,7 @@ Skip to the next iteration of a loop.
 
 ## Syntax
 
-```duso
-continue
-```
+`continue`
 
 ## Description
 

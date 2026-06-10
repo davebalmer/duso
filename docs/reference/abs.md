@@ -2,7 +2,6 @@
 
 Get the absolute value of a number.
 
-
 `abs(number)`
 
 ## Parameters

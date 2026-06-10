@@ -2,7 +2,6 @@
 
 Round a number down to the nearest integer.
 
-
 `floor(number)`
 
 ## Parameters

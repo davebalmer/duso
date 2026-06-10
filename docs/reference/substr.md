@@ -2,7 +2,6 @@
 
 Extract a substring from a string.
 
-
 `substr(string, start [, length])`
 
 ## Parameters

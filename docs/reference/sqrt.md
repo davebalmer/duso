@@ -2,7 +2,6 @@
 
 Calculate the square root of a number.
 
-
 `sqrt(number)`
 
 ## Parameters

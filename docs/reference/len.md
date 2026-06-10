@@ -2,7 +2,6 @@
 
 Get the length of arrays, objects, or strings.
 
-
 `len(value)`
 
 ## Parameters

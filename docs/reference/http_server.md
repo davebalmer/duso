@@ -2,7 +2,6 @@
 
 Create an HTTP server that listens for incoming requests and runs handler scripts. Available in `duso` CLI only.
 
-
 `http_server([config])`
 
 ## Parameters
@@ -958,19 +957,6 @@ end
 - Max file size is enforced; oversized files are ignored (silently skipped)
 - Form field limits (`max_form_fields`) also apply to file uploads
 - If no files are uploaded, `req.files` is an empty map (never nil)
-
-## Notes
-
-- Server blocks until it receives a Ctrl+C signal (SIGINT) or termination signal (SIGTERM)
-- Routes can be registered after `start()` is called (thread-safe)
-- Both handler routes (`route()`) and static routes (`static()`) can be used together
-- Script execution continues after `server.start()` returns, allowing cleanup code
-- Handler scripts are loaded from disk for each request (use caching/preprocessing if performance is critical)
-- Use `exit()` to send responses (becomes HTTP response with status/body/headers)
-- If handler doesn't call `exit()`, response is 204 No Content
-- If handler exceeds `request_handler_timeout`, response is 504 Gateway Timeout
-- `timeout` (socket level) and `request_handler_timeout` (handler script) are independent
-- Available in `duso` CLI only
 
 ## See Also
 

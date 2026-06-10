@@ -2,7 +2,6 @@
 
 Copy a file from source to destination.
 
-
 `copy_file(src, dst)`
 
 ## Parameters

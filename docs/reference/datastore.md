@@ -2,7 +2,6 @@
 
 Create a thread-safe in-memory key/value store with optional binary persistence. Perfect for coordinating work between spawned scripts.
 
-
 `datastore(namespace [, config])`
 
 ## Parameters
@@ -557,15 +556,6 @@ Main Script
 ```
 
 Zero-overhead signaling - no polling, just efficient condition variable wakeups.
-
-## Notes
-
-- **Namespacing is global**: Calling `datastore("name")` multiple times returns the same cached instance. Pass config only on first call
-- **Persistence is opt-in**: No `persist` config = in-memory only. With `persist` = auto-load on first creation and optional auto-save
-- **Process lifetime**: Datastores persist in memory for the lifetime of the Duso process only. Restart requires re-creating with `persist` config to reload
-- **Namespace collision**: Collision between swarms will cause them to share state (usually a bug - use unique namespaces)
-- **No ACID**: Simple last-write-wins semantics, no transactions
-- **Array deletes**: Not supported (just clear() and rebuild if needed)
 
 ## See Also
 

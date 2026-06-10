@@ -2,7 +2,6 @@
 
 Round a number to the nearest integer.
 
-
 `round(number)`
 
 ## Parameters

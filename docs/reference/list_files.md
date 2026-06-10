@@ -2,7 +2,6 @@
 
 List files matching a wildcard pattern.
 
-
 `list_files(pattern)`
 
 ## Parameters

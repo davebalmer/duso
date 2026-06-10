@@ -2,7 +2,6 @@
 
 Hash a password using bcrypt for secure storage.
 
-
 `hash_password(password [, cost])`
 
 ## Parameters

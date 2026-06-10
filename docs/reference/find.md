@@ -2,7 +2,6 @@
 
 Find all matches of a pattern in a string.
 
-
 `find(string, pattern [, ignore_case])`
 
 ## Parameters

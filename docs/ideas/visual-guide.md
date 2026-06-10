@@ -134,7 +134,6 @@ while i < 5 do
 end
 // Prints: 0 1 2 3 4
 
-
 for loop:
 Item 0: 1
 Item 1: 2
@@ -661,4 +660,3 @@ This tells you:
 | **Scatter-gather** | Distributed work | `spawn(worker, data)` |
 | **Request/response** | Inter-process comm | `context()` + `datastore()` |
 | **Try/catch** | Error recovery | `try op catch(e)` |
-

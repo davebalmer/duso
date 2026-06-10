@@ -2,7 +2,6 @@
 
 Verify a password against a bcrypt hash. Uses constant-time comparison to prevent timing attacks.
 
-
 `verify_password(password, hash)`
 
 ## Parameters

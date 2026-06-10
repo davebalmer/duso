@@ -2,7 +2,6 @@
 
 Pad a string on the left with a character to reach a desired width.
 
-
 `pad_left(str, width [, char])`
 
 ## Parameters

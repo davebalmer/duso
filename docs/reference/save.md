@@ -2,7 +2,6 @@
 
 Write content to a file. Available in `duso` CLI only.
 
-
 `save(filename, content)`
 
 ## Parameters

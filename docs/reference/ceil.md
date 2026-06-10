@@ -2,7 +2,6 @@
 
 Round a number up to the nearest integer.
 
-
 `ceil(number)`
 
 ## Parameters

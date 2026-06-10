@@ -2,7 +2,6 @@
 
 Convert JWK (JSON Web Key) components to a PEM-encoded RSA public key.
 
-
 `rsa_from_jwk(n, e)`
 
 ## Parameters

@@ -4,9 +4,7 @@ Exit a loop immediately.
 
 ## Syntax
 
-```duso
-break
-```
+`break`
 
 ## Description
 

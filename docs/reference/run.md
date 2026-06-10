@@ -2,7 +2,6 @@
 
 Execute a script synchronously and return its result. Available in `duso` CLI only.
 
-
 `run(script_path [, context] [, timeout] [, io])`
 
 ## Parameters

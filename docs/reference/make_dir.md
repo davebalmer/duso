@@ -2,7 +2,6 @@
 
 Create a directory (including parent directories if needed).
 
-
 `make_dir(path)`
 
 ## Parameters

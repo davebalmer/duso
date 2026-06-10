@@ -2,7 +2,6 @@
 
 Remove an empty directory.
 
-
 `remove_dir(path)`
 
 ## Parameters

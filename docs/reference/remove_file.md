@@ -2,7 +2,6 @@
 
 Delete a file.
 
-
 `remove_file(path)`
 
 ## Parameters

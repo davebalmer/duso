@@ -2,7 +2,6 @@
 
 Display an animated spinner with a status message. Useful for long-running operations to show progress to the user.
 
-
 `busy(message)`
 
 ## Parameters

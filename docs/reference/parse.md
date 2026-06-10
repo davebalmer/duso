@@ -2,7 +2,6 @@
 
 Parse source code string into a code value or error value. Never throws—always returns a value.
 
-
 `parse(source [, metadata])`
 
 ## Parameters

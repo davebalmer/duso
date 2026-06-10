@@ -2,7 +2,6 @@
 
 Generate a UUID v7 (RFC 9562) universally unique identifier.
 
-
 `uuid()`
 
 ## Parameters

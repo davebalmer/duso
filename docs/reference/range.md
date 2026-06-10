@@ -2,7 +2,6 @@
 
 Create an array of numbers in a sequence.
 
-
 `range(start, end [, step])`
 
 ## Parameters

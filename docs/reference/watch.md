@@ -2,7 +2,6 @@
 
 Monitor a file, directory, or glob pattern for changes.
 
-
 `watch(path [, timeout = 30])`
 
 ## Parameters

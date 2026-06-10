@@ -1,4 +1,4 @@
-# Comments
+# comments
 
 Comments are text in your code that are ignored by the interpreter. Use them to document what your code does.
 

@@ -2,7 +2,6 @@
 
 Check if a string ends with a given suffix.
 
-
 `ends_with(string, suffix [, ignore_case])`
 
 ## Parameters

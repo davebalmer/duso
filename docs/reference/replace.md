@@ -2,7 +2,6 @@
 
 Replace all matches of a pattern in a string. Supports literal strings, regular expressions, and custom replacement functions.
 
-
 `replace(string, pattern, replacement [, ignore_case])`
 
 ## Parameters

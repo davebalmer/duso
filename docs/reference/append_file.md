@@ -2,7 +2,6 @@
 
 Append content to a file (create if doesn't exist).
 
-
 `append_file(path, content)`
 
 ## Parameters

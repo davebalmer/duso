@@ -2,7 +2,6 @@
 
 Find the maximum value among multiple numbers.
 
-
 `max(...numbers)`
 
 ## Parameters

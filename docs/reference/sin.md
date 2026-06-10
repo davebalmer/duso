@@ -2,7 +2,6 @@
 
 Calculate the sine of an angle in radians.
 
-
 `sin(angle)`
 
 ## Parameters

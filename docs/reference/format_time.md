@@ -2,7 +2,6 @@
 
 Format a Unix timestamp to a human-readable string.
 
-
 `format_time(timestamp [, format])`
 
 ## Parameters

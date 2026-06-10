@@ -2,7 +2,6 @@
 
 Verify an RSA signature using SHA256-PKCS1v15.
 
-
 `verify_rsa(data, signature, public_key_pem)`
 
 ## Parameters

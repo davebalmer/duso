@@ -1,6 +1,6 @@
 # sys()
 
-Access values from the sys datastore. Provides a convenient interface to read system information including CLI flags, configuration, and other runtime data. Available in `duso` CLI only.
+Access system information, CLI flags, and runtime data. Provides a convenient interface to query how the duso process was invoked. Available in `duso` CLI only.
 
 `sys(key)`
 
@@ -10,11 +10,45 @@ Access values from the sys datastore. Provides a convenient interface to read sy
 
 ## Returns
 
-The value associated with the key, or nil if the key doesn't exist. Return type depends on what was stored (bool, string, number, object, etc.)
+The value associated with the key, or nil if the key doesn't exist. Return type depends on what was stored (bool, string, object, array, etc.)
+
+## Available Keys
+
+**System Information**
+- `sys("version")` - Duso version string (e.g., "v1.3.0")
+- `sys("args")` - Array of command-line arguments passed to duso
+
+**CLI Flags** (stored with leading hyphen)
+- `sys("-debug")` - Boolean, true if `-debug` flag passed
+- `sys("-no-color")` - Boolean, true if `-no-color` flag passed
+- `sys("-no-files")` - Boolean, true if `-no-files` flag passed
+- `sys("-no-stdin")` - Boolean, true if `-no-stdin` flag passed
+- `sys("-verbose")` - Boolean, true if `-verbose` flag passed
+- `sys("-config")` - Object containing parsed config (if `-config` flag passed)
+
+**Notes on Flags**
+- Boolean flags return `true` when set, `nil` when not set (never `false`)
+- Unknown flags are stored as-is with their flag name as key
+- Use leading hyphen to check flag status: `sys("-flagname")`
 
 ## Examples
 
-Check CLI flags:
+Check duso version:
+
+```duso
+version = sys("version")
+print("Running duso " + version)
+```
+
+Access command-line arguments:
+
+```duso
+args = sys("args")
+print("Arguments: " + format_json(args))
+// args is an array of strings passed to duso
+```
+
+Check boolean CLI flags:
 
 ```duso
 if sys("-debug") then
@@ -23,6 +57,10 @@ end
 
 if sys("-no-color") then
   print("Colors disabled")
+end
+
+if sys("-verbose") then
+  print("Verbose mode enabled")
 end
 ```
 
@@ -46,24 +84,27 @@ duso -config 'port=8080, timeout=30' script.du
 Check multiple CLI options:
 
 ```duso
-verbose = sys("-verbose") or false
-no_files = sys("-no-files") or false
-no_stdin = sys("-no-stdin") or false
-
-if verbose then
-  print("Running in verbose mode")
+if sys("-debug") then
+  print("Debug enabled")
 end
 
-if no_files then
+if sys("-no-files") then
   print("File system access disabled")
+end
+
+if sys("-no-stdin") then
+  print("Standard input disabled")
 end
 ```
 
 ## Notes
 
-- The sys datastore contains CLI flags (stored with leading hyphen: `-debug`, `-no-color`) and other system information
-- The `-config` flag is parsed into an object for convenient access to configuration values
-- Boolean flags return `true` or `nil` (not `false`) when not set
+- The sys datastore is read-only and contains system information and CLI flags captured at startup
+- CLI flags are stored with a leading hyphen in the key name (e.g., `"-debug"`)
+- The `-config` flag is automatically parsed from its string format into an object for convenient access
+- Boolean flags follow the Lua convention: `true` when set, `nil` when not set (never `false`)
+- The `"args"` array contains the full list of command-line arguments passed to duso
+- Unknown custom flags are stored as-is with their flag name as key, following the same convention
 - This is the recommended way to access system information and CLI options from scripts
 
 ## See Also

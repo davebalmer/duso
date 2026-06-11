@@ -41,7 +41,7 @@ Datastore object with methods
 - `unshift(key, item)` - Atomically prepend item to array. Creates array if key doesn't exist. Returns new length
 
 ### Wait & Blocking
-- `wait(key [, value] [, timeout])` - Block until key changes, or value matches. Value can be any type (equals check) or a function (predicate). Optional timeout in seconds
+- `wait(key [, value] [, timeout])` - Block until key changes, or value matches. Value can be any type (equals check) or a function (predicate). Returns the current value of key on success; throws error if timeout exceeded. Optional timeout in seconds
 
 ### Expiration
 - `expire(key, ttlSeconds)` - Set time-to-live for a key in seconds. Key automatically deleted when TTL expires. Re-calling resets the timer. Default TTL is 60 minutes. Returns error if key doesn't exist
@@ -131,7 +131,7 @@ store = datastore(job_id)
 store.increment("worker_count", 1)
 
 // Do work...
-print("Worker " + format_json(worker_id) + " working...")
+print("Worker {{worker_id}} working...")
 
 // Mark done
 store.increment("completed", 1)
@@ -436,7 +436,7 @@ Filter by key patterns:
 
 ```duso
 results = store.select(function(key, value)
-  if string.startswith(key, "user_") and value.active then
+  if starts_with(key, "user_") and value.active then
     return value
   end
 end)
@@ -482,27 +482,19 @@ Example: Two scripts calling `swap()` on same key won't lose values - one gets o
 
 ## Wait Semantics
 
-**wait(key)** - Blocks until value changes from initial state (detects new appends, value updates)
+**wait(key)** - Blocks until value changes from initial state. Returns the new value of key on success; throws error if timeout exceeded.
 
-**wait(key, expectedValue)** - Blocks until key equals expectedValue (useful for status flags)
+**wait(key, expectedValue)** - Blocks until key equals expectedValue. Returns expectedValue on success; throws error if timeout exceeded.
 
-For complex conditions, use `wait()` in a loop:
-
-```duso
-// Wait until array has at least 10 items
-while true do
-  store.wait("items", timeout=5)
-  if len(store.get("items")) >= 10 then break end
-end
-```
+**wait(key, predicate)** - Blocks until predicate function returns truthy. Predicate receives the current value and should return a boolean. Returns the current value on success; throws error if timeout exceeded.
 
 ```duso
-// Wait for non-array with condition
-while true do
-  store.wait("status", timeout=5)
-  if store.get("status") == "complete" then break end
-end
+// Wait until temperature >= 20 (predicate form)
+temp = store.wait(key="temperature", value=function(t) return t >= 20 end, timeout=10)
+print("Safe: " + temp)
 ```
+
+Predicate form is preferred for complex conditions—avoids polling with a loop.
 
 ## Persistence
 
@@ -517,20 +509,19 @@ Binary gob encoding preserves all Duso types with type safety (arrays, objects, 
 
 ## Timeout on Wait
 
-All wait methods support optional timeout (last parameter):
+Wait methods support optional timeout (last parameter):
 
 ```duso
 // Wait up to 5 seconds for value to equal "done"
 store.wait("status", "done", 5)
 
-// Wait up to 10 seconds for condition
-while true do
-  store.wait("items", timeout=10)
-  if len(store.get("items")) > 0 then break end
-end
+// Wait up to 10 seconds for predicate
+temp = store.wait("temperature", function(t) return t >= 20 end, 10)
 ```
 
-Returns error if timeout exceeded without condition met.
+**Return behavior on timeout:**
+- `wait()` - throws error if timeout exceeded
+- `shift_wait()` / `pop_wait()` - returns nil if timeout exceeded
 
 ## Thread Safety
 

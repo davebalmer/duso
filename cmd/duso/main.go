@@ -1076,6 +1076,7 @@ func main() {
 	doInstall := flag.Bool("install", false, "Install duso binary to system PATH")
 	doLint := flag.Bool("lint", false, "Lint Duso scripts for errors and warnings")
 	doLintMD := flag.Bool("lint-md", false, "Lint Duso code blocks in markdown files")
+	doSyntax := flag.Bool("syntax", false, "Generate TextMate syntax definition in JSON format")
 
 	// Allow unknown flags to pass through to scripts
 	flag.CommandLine.Init(flag.CommandLine.Name(), flag.ContinueOnError)
@@ -1221,6 +1222,16 @@ func main() {
 			files = append(files, "/dev/stdin")
 		}
 		if err := lintMarkdown(files, ignoreWarnings); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if *doSyntax {
+		// Register builtins first so they can be introspected
+		dusoruntime.RegisterBuiltins()
+		if err := generateSyntax(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

@@ -211,3 +211,8 @@ func LookupKeyword(ident string) TokenType {
 	}
 	return TOK_IDENT
 }
+
+// GetKeywords returns the keywords map for introspection (e.g., for syntax generation)
+func GetKeywords() map[string]TokenType {
+	return keywords
+}

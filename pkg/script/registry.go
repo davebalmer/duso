@@ -29,3 +29,12 @@ func CopyBuiltins() map[string]GoFunction {
 func GetBuiltin(name string) GoFunction {
 	return globalBuiltins[name]
 }
+
+// GetAllBuiltinNames returns a sorted list of all registered builtin function names.
+func GetAllBuiltinNames() []string {
+	names := make([]string, 0, len(globalBuiltins))
+	for name := range globalBuiltins {
+		names = append(names, name)
+	}
+	return names
+}

@@ -4,7 +4,7 @@
 
 # Duso
 
-**A complete server runtime. One 10MB binary with everything built in. No npm, no dependencies, no bloat. A simple scripting language powered by Go, with native goroutine concurrency and instant hot reload.**
+**A complete server runtime. One 10MB binary with everything built in. No npm, no dependencies, no bloat. A simple scripting language powered by Go, with native goroutine concurrency and instant hot reload during dev. Bundle your app into its own binary for easy deployment.**
 
 ## Download & Install
 

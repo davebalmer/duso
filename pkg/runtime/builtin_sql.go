@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 // sqlConn wraps *sql.DB with namespace-level configuration
@@ -31,9 +32,9 @@ var (
 //   - .close() - Close connection and remove from registry
 //
 // Configuration options:
-//   - driver (string) - "mysql", "mariadb", or "tidb" (all use MySQL protocol)
+//   - driver (string) - "mysql", "mariadb", "tidb" (MySQL protocol) or "postgres"/"pg" (PostgreSQL)
 //   - host (string) - database host, default "localhost"
-//   - port (number) - database port, default 4000 (TiDB); use 3306 for MySQL/MariaDB
+//   - port (number) - database port, default 3306 for MySQL, 5432 for Postgres
 //   - database (string) - database name
 //   - user (string) - database user
 //   - password (string) - database password
@@ -41,12 +42,17 @@ var (
 //   - max_idle_conns (number) - max idle connections, default 5
 //   - conn_max_lifetime (number) - connection max lifetime in seconds, default 300
 //   - return_objects (bool) - default row format (true = objects, false = arrays), default true
-//   - dsn (string) - raw DSN string, overrides all other connection parameters
+//   - dsn (string) - raw DSN string, overrides all other connection parameters (driver still required)
 //
-// Example:
-//   db = sql("users", {driver = "mysql", host = "localhost", port = 4000, database = "myapp", user = "root"})
+// MySQL uses ? placeholders; Postgres uses $1, $2, ... placeholders.
+//
+// Example (MySQL):
+//   db = sql("users", {driver = "mysql", host = "localhost", database = "myapp", user = "root"})
 //   rows = db.query("SELECT id, name FROM users WHERE id = ?", [42])
-//   n = db.exec("UPDATE users SET seen = ? WHERE id = ?", [timestamp(), 42])
+//
+// Example (Postgres):
+//   db = sql("users", {driver = "postgres", host = "localhost", database = "myapp", user = "postgres"})
+//   rows = db.query("SELECT id, name FROM users WHERE id = $1", [42])
 func builtinSQL(evaluator *Evaluator, args map[string]any) (any, error) {
 	// Get namespace
 	var namespace string
@@ -97,23 +103,35 @@ func builtinSQL(evaluator *Evaluator, args map[string]any) (any, error) {
 	return buildSQLObject(evaluator, conn)
 }
 
+// resolveDriver maps config driver names to Go sql driver names and default ports
+func resolveDriver(config map[string]any) (driverName string, defaultPort float64) {
+	d := getConfigString(config, "driver", "mysql")
+	switch d {
+	case "postgres", "pg", "postgresql":
+		return "postgres", 5432
+	default:
+		return "mysql", 3306
+	}
+}
+
 // createSQLConnection builds and opens a database connection from config
 func createSQLConnection(config map[string]any) (*sqlConn, error) {
+	driverName, defaultPort := resolveDriver(config)
+
+	returnObjects := true
+	if ro, ok := config["return_objects"]; ok {
+		if b, ok := ro.(bool); ok {
+			returnObjects = b
+		}
+	}
+
 	// Check for raw DSN override
 	if rawDSN, ok := config["dsn"]; ok {
 		dsn := fmt.Sprintf("%v", rawDSN)
-		db, err := sql.Open("mysql", dsn)
+		db, err := sql.Open(driverName, dsn)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open SQL connection: %w", err)
 		}
-
-		returnObjects := true
-		if ro, ok := config["return_objects"]; ok {
-			if b, ok := ro.(bool); ok {
-				returnObjects = b
-			}
-		}
-
 		configurePool(db, config)
 		return &sqlConn{db: db, returnObjects: returnObjects}, nil
 	}
@@ -122,22 +140,20 @@ func createSQLConnection(config map[string]any) (*sqlConn, error) {
 	user := getConfigString(config, "user", "root")
 	password := getConfigString(config, "password", "")
 	host := getConfigString(config, "host", "localhost")
-	port := getConfigFloat(config, "port", 4000)
+	port := getConfigFloat(config, "port", defaultPort)
 	database := getConfigString(config, "database", "")
 
-	// Build DSN with parseTime=true so time.Time values are scanned correctly
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", user, password, host, int(port), database)
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open SQL connection: %w", err)
+	var dsn string
+	if driverName == "postgres" {
+		dsn = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, int(port), database)
+	} else {
+		// MySQL: parseTime=true so time.Time values are scanned correctly
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", user, password, host, int(port), database)
 	}
 
-	returnObjects := true
-	if ro, ok := config["return_objects"]; ok {
-		if b, ok := ro.(bool); ok {
-			returnObjects = b
-		}
+	db, err := sql.Open(driverName, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open SQL connection: %w", err)
 	}
 
 	configurePool(db, config)

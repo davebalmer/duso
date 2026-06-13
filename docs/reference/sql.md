@@ -1,10 +1,10 @@
 # sql() — Database Connections
 
-The `sql()` builtin provides thread-safe, namespaced connections to MySQL-compatible databases (MySQL, MariaDB, TiDB). Connections are pooled globally by namespace, allowing multiple scripts to share the same pool.
+The `sql()` builtin provides thread-safe, namespaced connections to relational databases. Supported drivers: MySQL, MariaDB, TiDB (all use the `"mysql"` driver) and PostgreSQL (`"postgres"`). Connections are pooled globally by namespace, allowing multiple scripts to share the same pool.
 
 ## Basic Usage
 
-Create a connection:
+Create a connection (MySQL):
 
 ```duso
 db = sql("myapp", {
@@ -13,6 +13,18 @@ db = sql("myapp", {
   port = 3306,
   database = "mydb",
   user = "root",
+  password = "secret"
+})
+```
+
+Create a connection (Postgres):
+
+```duso
+db = sql("myapp", {
+  driver = "postgres",
+  host = "localhost",
+  database = "mydb",
+  user = "postgres",
   password = "secret"
 })
 ```
@@ -45,18 +57,20 @@ Pass a config object as the second argument to `sql()`:
 
 ```duso
 db = sql("namespace", {
-  driver = "mysql",           // "mysql", "mariadb", or "tidb"
+  driver = "mysql",           // "mysql", "mariadb", "tidb" — or "postgres" / "pg"
   host = "localhost",         // default: "localhost"
-  port = 3306,                // default: 3306 for MySQL, 4000 for TiDB
+  port = 3306,                // default: 3306 for MySQL, 5432 for Postgres
   database = "mydb",          // required
   user = "root",              // default: "root"
   password = "secret",        // default: "" (no password)
   max_open_conns = 25,        // optional, default: 25
   max_idle_conns = 5,         // optional, default: 5
   conn_max_lifetime = 300,    // optional, seconds, default: 300
-  dsn = "...",                // optional: raw DSN string (overrides all above)
+  dsn = "...",                // optional: raw DSN string (driver still required)
 })
 ```
+
+**Note:** MySQL uses `?` placeholders; Postgres uses `$1`, `$2`, etc. Write SQL for whichever driver you're targeting.
 
 If the second argument is omitted, `sql()` retrieves an existing connection or throws an error if not found.
 
@@ -335,6 +349,29 @@ db.exec("UPDATE players SET tokens = tokens + ? WHERE id = ?", [10, player_id])
 
 // Deduct tokens (atomic)
 db.exec("UPDATE players SET tokens = tokens - ? WHERE id = ? AND tokens >= ?", [cost, player_id, cost])
+```
+
+### Postgres — Basic Query
+
+```duso
+db = sql("pg", {driver = "postgres", host = "localhost", database = "app", user = "postgres"})
+
+rows = db.query("SELECT id, name FROM users WHERE status = $1", ["active"])
+for row in rows do
+  print(row.name)
+end
+```
+
+### Postgres — Insert with RETURNING
+
+```duso
+db = sql("pg", {driver = "postgres", host = "localhost", database = "app", user = "postgres"})
+
+rows = db.query(
+  "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id",
+  ["alice", "alice@example.com"]
+)
+print("New user id: " + rows[0].id)
 ```
 
 ## See Also

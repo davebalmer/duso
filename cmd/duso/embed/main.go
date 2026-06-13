@@ -79,8 +79,11 @@ func copyDir(src, dst string) error {
 
 	// Copy each entry
 	for _, entry := range entries {
-		// Never stage macOS Finder junk into the embedded binary.
-		if entry.Name() == ".DS_Store" {
+		// Skip dotfiles (.DS_Store and friends). They are never part of an
+		// embedded app or stdlib, and silently baking e.g. a top-level .env
+		// into the binary would be a footgun. This matches the long-standing
+		// behavior of `cp -r dir/*`, which shell-globs past dotfiles.
+		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
 		srcPath := core.Join(src, entry.Name())

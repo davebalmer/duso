@@ -111,6 +111,11 @@ if [ ! -d "$BUNDLE_DIR" ]; then
   exit 1
 fi
 
+# Resolve the bundle dir to an absolute path. It may live anywhere on disk, and
+# we stage it from inside the Duso repo (changing cwd), so a relative path would
+# otherwise break.
+BUNDLE_DIR="$(cd "$BUNDLE_DIR" && pwd)"
+
 # Validate run script exists in bundle
 if [ ! -f "$BUNDLE_DIR/$RUN_SCRIPT" ]; then
   echo "Error: run script not found: $BUNDLE_DIR/$RUN_SCRIPT"
@@ -138,13 +143,14 @@ if [ -n "$ADD_LIB" ]; then
 fi
 echo ""
 
-# Clean up any previous app staging
-rm -rf "$DUSO_REPO/cmd/duso/app" 2>/dev/null || true
-
-# Copy bundle to staging area
-echo "Copying application files..."
-mkdir -p "$DUSO_REPO/cmd/duso/app"
-cp -r "$BUNDLE_DIR"/* "$DUSO_REPO/cmd/duso/app/"
+# Stage the application into the embed tree using the same generator that embeds
+# stdlib/docs/etc. It gzip-compresses text assets (inflated transparently at
+# runtime via the gzip-magic sniff in cli.EmbeddedFileRead) and skips dotfiles,
+# so a bundled app gets the same size win and not-readable-via-strings benefit as
+# the rest of the binary. The generator wipes and recreates the dest, and the app
+# dir may live anywhere, so we pass the absolute BUNDLE_DIR and run from the repo.
+echo "Staging application files..."
+(cd "$DUSO_REPO" && go run ./cmd/duso/embed "$BUNDLE_DIR" cmd/duso/app)
 
 # Get version
 VERSION=$(cd "$DUSO_REPO" && git describe --tags 2>/dev/null || echo "dev")

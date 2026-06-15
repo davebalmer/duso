@@ -273,7 +273,16 @@ function session(user_config)
   if config.tools then
     var converted_tools = []
     for t in config.tools do
-      if type(t) == "object" and t.name then
+      // Check for type field first - server tools and vendor-specific tools have it
+      if type(t) == "object" and t.type then
+        // Has type field - it's a server tool or already in API format, pass through as-is
+        push(converted_tools, t)
+        // Extract handler if present
+        if t.handler then
+          config.tool_handlers[t.name] = t.handler
+        end
+      elseif type(t) == "object" and t.name then
+        // Standard tool definition without type - convert to Claude API schema
         var tool_schema = {
           name = t.name,
           description = t.description or "",

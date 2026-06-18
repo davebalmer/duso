@@ -1,0 +1,126 @@
+// Slack module for duso
+// Provides webhook posting and Socket Mode client
+
+// post_webhook(url, payload) - Post message to incoming webhook
+function post_webhook(url, payload)
+  if type(url) != "string" or len(url) == 0 then
+    throw("post_webhook() requires a webhook URL string")
+  end
+
+  if payload == nil then
+    payload = {}
+  end
+
+  body = payload
+  if type(payload) == "table" or type(payload) == "object" then
+    body = format_json(payload)
+  end
+
+  response = fetch(url, {
+    method = "POST",
+    headers = {
+      "Content-Type" = "application/json"
+    },
+    body = body
+  })
+
+  return response.ok
+end
+
+// session(config) - Create Socket Mode session
+// config.app_token required
+function session(config)
+  if config == nil then
+    config = {}
+  end
+
+  app_token = config.app_token
+  if type(app_token) != "string" or len(app_token) == 0 then
+    throw("session() requires config.app_token")
+  end
+
+  // Connect to Socket Mode
+  ws = websocket("wss://wss-primary.slack.com/link/", {
+    headers = {
+      "Sec-WebSocket-Protocol" = "xmpp"
+    }
+  })
+
+  // Send hello
+  hello = {
+    type = "hello",
+    num_connections = 1,
+    debug_info = {
+      host = "duso"
+    }
+  }
+  ws.write(format_json(hello))
+
+  // Receive ack, parse to get connection info
+  ack_msg = ws.read(timeout=10)
+  if ack_msg == nil then
+    throw("Socket Mode connection timeout")
+  end
+
+  ack = parse_json(ack_msg)
+  if ack.type != "hello" then
+    throw("Socket Mode: unexpected response type " + ack.type)
+  end
+
+  // Create session object
+  session_obj = {
+    ws = ws,
+    id = ws.id,
+    envelope_id = 1,
+  }
+
+  session_obj.read = function(timeout)
+    while true do
+      msg = session_obj.ws.read(timeout)
+      if msg == nil then
+        return nil
+      end
+
+      event = parse_json(msg)
+
+      // Auto-ack if envelope_id present
+      if event.envelope_id then
+        ack_payload = {
+          envelope_id = event.envelope_id
+        }
+        session_obj.ws.write(format_json(ack_payload))
+      end
+
+      // Return the payload/event
+      if event.payload then
+        return event.payload
+      elseif event.type then
+        return event
+      end
+    end
+  end
+
+  session_obj.write = function(payload)
+    if type(payload) != "object" and type(payload) != "table" then
+      payload = {text = tostring(payload)}
+    end
+
+    msg = format_json(payload)
+    return session_obj.ws.write(msg)
+  end
+
+  session_obj.is_connected = function()
+    return session_obj.ws.is_connected()
+  end
+
+  session_obj.close = function()
+    return session_obj.ws.close()
+  end
+
+  return session_obj
+end
+
+return {
+  post_webhook = post_webhook,
+  session = session
+}

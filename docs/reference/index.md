@@ -200,12 +200,14 @@ Duso comes ready-to-run with its own runtime written in Go. It has a wide array 
 - `hash(algo, data)` compute cryptographic hash of string or binary (sha256, sha512, sha1, md5)
 - `hash_password(password [, cost])` hash password with bcrypt for secure storage
 - `verify_password(password, hash)` verify password against bcrypt hash
+- `hmac(algo, data, key)` compute HMAC for message authentication (sha256, sha512, sha1, md5)
 - `sign_rsa(data, private_key_pem)` sign data with RSA private key (SHA256-PKCS1v15)
 - `verify_rsa(data, signature, public_key_pem)` verify RSA signature
 - `rsa_from_jwk(n, e)` convert JWK modulus and exponent to PEM-encoded RSA public key
 - `sign_ec(data, private_key_pem)` sign data with EC private key (ES256, P-256 curve)
 - `verify_ec(data, signature, public_key_pem)` verify EC signature (ES256, P-256 curve)
 - `ec_from_jwk(x, y)` convert JWK x,y coordinates to PEM-encoded EC public key (P-256)
+- `verify_ed25519(data, signature, public_key_pem)` verify Ed25519 signature
 
 ## Modules and Flow
 

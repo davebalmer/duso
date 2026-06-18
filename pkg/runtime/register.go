@@ -57,6 +57,12 @@ func RegisterBuiltins() {
 	RegisterBuiltin("verify_ec", builtinVerifyEC)
 	RegisterBuiltin("ec_from_jwk", builtinECFromJWK)
 
+	// Ed25519 operations
+	RegisterBuiltin("verify_ed25519", builtinVerifyEd25519)
+
+	// HMAC operations
+	RegisterBuiltin("hmac", builtinHMAC)
+
 	// String operations
 	RegisterBuiltin("upper", builtinUpper)
 	RegisterBuiltin("lower", builtinLower)

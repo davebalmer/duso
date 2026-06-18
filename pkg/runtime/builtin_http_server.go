@@ -355,11 +355,21 @@ func builtinHTTPServer(evaluator *Evaluator, args map[string]any) (any, error) {
 			return nil, fmt.Errorf("route() requires method, path, and optional handler arguments")
 		}
 
-		// Handler path is optional - defaults to current script
+		// Handler can be: string (path), code value (parse result), or omitted (current script)
 		handlerPath := ""
+		var handlerCode *script.Program
 		if handlerArg, ok := routeArgs["2"]; ok {
-			if handlerStr, ok := handlerArg.(string); ok {
-				handlerPath = handlerStr
+			switch h := handlerArg.(type) {
+			case string:
+				// String path provided
+				handlerPath = h
+			case *script.ValueRef:
+				// Code value wrapped in ValueRef
+				if h.Val.Type == script.VAL_CODE {
+					codeVal := h.Val.Data.(*script.CodeValue)
+					handlerCode = codeVal.Program
+					handlerPath = "<inline>"  // Placeholder, won't be used
+				}
 			}
 		}
 
@@ -374,7 +384,7 @@ func builtinHTTPServer(evaluator *Evaluator, args map[string]any) (any, error) {
 		}
 
 		// Register the route
-		err := server.Route(methodArg, path, handlerPath)
+		err := server.Route(methodArg, path, handlerPath, handlerCode)
 		// Set scriptDir for ALL routes (both current script and external handlers)
 		// This allows static files to be resolved relative to the handler script's directory
 		if err == nil && scriptDir != "" {

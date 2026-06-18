@@ -490,8 +490,8 @@ func (i *Interpreter) ParseScript(path string) (*Program, error) {
 	i.parseMutex.RUnlock()
 
 	if ok {
-		// For embedded files, always use cache
-		if core.HasPathPrefix(path, "EMBED") {
+		// For embedded files or inline code, always use cache
+		if core.HasPathPrefix(path, "EMBED") || strings.HasPrefix(path, "<inline-") {
 			return cached.ast, nil
 		}
 		// For regular files, validate mtime
@@ -542,6 +542,20 @@ func (i *Interpreter) ParseScript(path string) (*Program, error) {
 	i.parseMutex.Unlock()
 
 	return program, nil
+}
+
+// CacheProgram stores a pre-parsed program in the cache with the given key.
+// Used by http_server to cache inline code handlers from parse().
+func (i *Interpreter) CacheProgram(key string, program *Program) {
+	i.parseMutex.Lock()
+	defer i.parseMutex.Unlock()
+	if i.parseCache == nil {
+		i.parseCache = make(map[string]*ParseCacheEntry)
+	}
+	i.parseCache[key] = &ParseCacheEntry{
+		ast:   program,
+		mtime: 0, // inline code has no mtime
+	}
 }
 
 // GetModuleCache retrieves a cached module value by absolute path with mtime validation.

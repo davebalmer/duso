@@ -143,12 +143,13 @@ type Route struct {
 	Method      string
 	Path        string
 	HandlerPath string
-	ScriptDir   string         // Directory of the script that registered this route (for handler path resolution)
-	PathParams  []string       // Parameter names extracted from path pattern (e.g., ["id", "token"])
-	PathRegex   *regexp.Regexp // Compiled regex for matching (nil if no params)
-	IsStatic    bool           // True if this is a static file route
-	StaticDir   string         // Directory to serve files from (for static routes)
-	IsWebSocket bool           // True if this is a WebSocket route (Method == "WS")
+	HandlerCode *script.Program    // Pre-parsed code to execute (if provided via parse())
+	ScriptDir   string             // Directory of the script that registered this route (for handler path resolution)
+	PathParams  []string           // Parameter names extracted from path pattern (e.g., ["id", "token"])
+	PathRegex   *regexp.Regexp     // Compiled regex for matching (nil if no params)
+	IsStatic    bool               // True if this is a static file route
+	StaticDir   string             // Directory to serve files from (for static routes)
+	IsWebSocket bool               // True if this is a WebSocket route (Method == "WS")
 }
 
 // isTextMIME checks if a content type should be treated as text
@@ -584,7 +585,7 @@ func (s *HTTPServerValue) StaticRoute(path, staticDir string) error {
 
 // Route registers a new route (thread-safe).
 // method can be: string ("GET", "get", "", "*"), nil, or []string for multiple methods
-func (s *HTTPServerValue) Route(methodArg any, path, handlerPath string) error {
+func (s *HTTPServerValue) Route(methodArg any, path, handlerPath string, handlerCode *script.Program) error {
 	s.routeMutex.Lock()
 	defer s.routeMutex.Unlock()
 
@@ -662,6 +663,7 @@ func (s *HTTPServerValue) Route(methodArg any, path, handlerPath string) error {
 			Method:      method,
 			Path:        path,
 			HandlerPath: handlerPath,
+			HandlerCode: handlerCode,
 			ScriptDir:   "",
 			PathParams:  pathParams,
 			PathRegex:   pathRegex,
@@ -1194,33 +1196,43 @@ func (s *HTTPServerValue) handleRequest(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	// Resolve handler path relative to the script that registered the route
-	resolvedHandlerPath := route.HandlerPath
-	if route.ScriptDir != "" && !core.IsAbsoluteOrSpecial(route.HandlerPath) {
-		// Only resolve if the handler path is relative (not absolute or special prefix)
-		// and doesn't already start with the script directory (to avoid doubling)
-		if !strings.HasPrefix(route.HandlerPath, route.ScriptDir+"/") {
-			resolvedHandlerPath = script.ResolveScriptPathFromDir(route.HandlerPath, route.ScriptDir)
-		}
-	}
+	// Use pre-parsed code if available, otherwise load from file
+	var program *script.Program
+	var err error
 
-	// Update frame to use resolved path (so scriptDir is correct for load/save/etc)
-	frame.Filename = resolvedHandlerPath
-
-	// Parse with caching (HTTP handlers are called repeatedly, avoid re-parsing each request)
-	if s.Interpreter == nil {
-		if !ctx.closed {
-			http.Error(w, "Handler execution requires interpreter", 500)
+	if route.HandlerCode != nil {
+		// Use inline code that was stored when route was registered
+		program = route.HandlerCode
+		frame.Filename = "<inline>"
+	} else {
+		// Resolve handler path relative to the script that registered the route
+		resolvedHandlerPath := route.HandlerPath
+		if route.ScriptDir != "" && !core.IsAbsoluteOrSpecial(route.HandlerPath) {
+			// Only resolve if the handler path is relative (not absolute or special prefix)
+			// and doesn't already start with the script directory (to avoid doubling)
+			if !strings.HasPrefix(route.HandlerPath, route.ScriptDir+"/") {
+				resolvedHandlerPath = script.ResolveScriptPathFromDir(route.HandlerPath, route.ScriptDir)
+			}
 		}
-		return
-	}
 
-	program, err := s.Interpreter.ParseScript(resolvedHandlerPath)
-	if err != nil {
-		if !ctx.closed {
-			http.Error(w, fmt.Sprintf("Handler script parse error: %v", err), 500)
+		// Update frame to use resolved path (so scriptDir is correct for load/save/etc)
+		frame.Filename = resolvedHandlerPath
+
+		// Parse with caching (HTTP handlers are called repeatedly, avoid re-parsing each request)
+		if s.Interpreter == nil {
+			if !ctx.closed {
+				http.Error(w, "Handler execution requires interpreter", 500)
+			}
+			return
 		}
-		return
+
+		program, err = s.Interpreter.ParseScript(resolvedHandlerPath)
+		if err != nil {
+			if !ctx.closed {
+				http.Error(w, fmt.Sprintf("Handler script parse error: %v", err), 500)
+			}
+			return
+		}
 	}
 
 	// Create timeout context for handler execution

@@ -803,7 +803,7 @@ conn.accept()  // Accept the WebSocket connection
 
 // Message loop: blocks until message received, timeout, or disconnect
 while true do
-  msg = conn.receive(timeout=30)  // Wait up to 30 seconds for message
+  msg = conn.read(timeout=30)  // Wait up to 30 seconds for message
 
   if msg == nil then    // nil means client disconnected or timeout
     break
@@ -811,7 +811,7 @@ while true do
 
   // Process message
   response = "Echo: " + msg
-  conn.send(response)   // Send message to client
+  conn.write(response)   // Send message to client
 end
 ```
 
@@ -820,10 +820,10 @@ end
 The `ctx.connection()` object provides WebSocket methods:
 
 - `accept()` - Accept the WebSocket connection (complete the upgrade)
-- `receive([timeout])` - Block until a message is received. Returns `nil` on disconnect or timeout.
+- `read([timeout])` - Block until a message is received. Returns `nil` on disconnect or timeout.
   - `timeout` (optional, number) - Wait timeout in seconds. If omitted, blocks indefinitely.
-  - Supports both positional: `receive(5)` and named: `receive(timeout=5)` arguments.
-- `send(message)` - Send a message to the connected client
+  - Supports both positional: `read(5)` and named: `read(timeout=5)` arguments.
+- `write(message)` - Send a message to the connected client
 - `close()` - Explicitly close the WebSocket connection
 - `is_connected()` - Check if connection is still open (returns boolean)
 
@@ -864,7 +864,7 @@ conn.accept()
 print("Client connected")
 
 while true do
-  msg = conn.receive()
+  msg = conn.read()
   if msg == nil then
     print("Client disconnected")
     break
@@ -872,7 +872,7 @@ while true do
 
   // Broadcast to all connected clients would require coordination
   // For now, just echo back
-  conn.send("You said: " + msg)
+  conn.write("You said: " + msg)
 end
 ```
 

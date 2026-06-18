@@ -2305,8 +2305,8 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 			return nil, wsConn.Accept()
 		}),
 
-		// receive([timeout]) - Block until a message is received, returns message string or nil on close/timeout
-		"receive": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
+		// read([timeout]) - Block until a message is received, returns message string or nil on close/timeout
+		"read": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
 			// Get optional timeout (positional or named)
 			var timeout *time.Duration
 			if t, ok := args["0"]; ok {
@@ -2332,11 +2332,11 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 			return msg, nil
 		}),
 
-		// send(message) - Send a message to the WebSocket client
-		"send": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
+		// write(message) - Send a message to the WebSocket client
+		"write": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
 			msg, ok := args["0"]
 			if !ok {
-				return nil, fmt.Errorf("send() requires a message argument")
+				return nil, fmt.Errorf("write() requires a message argument")
 			}
 			msgStr := fmt.Sprintf("%v", msg)
 			return nil, wsConn.Send(msgStr)

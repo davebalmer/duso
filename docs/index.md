@@ -182,6 +182,7 @@
 
 - [`fetch(url, options)`](/docs/reference/fetch.md) Make HTTP requests (JavaScript-style fetch API)
 - [`http_server(config)`](/docs/reference/http_server.md) Create HTTP server for handling requests
+- [`websocket(url, config)`](/docs/reference/websocket.md) Create WebSocket client connection
 
 ### I/O
 

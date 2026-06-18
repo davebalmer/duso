@@ -160,6 +160,7 @@ Duso comes ready-to-run with its own runtime written in Go. It has a wide array 
 ## HTTP
 
 - [HTTP functions](/docs/reference/http.md) - Full-featured HTTP client and server with routing, CORS, JWT authentication, WebSocket support, and file uploads.
+- `websocket(url, config)` create WebSocket client connection with read/write/close methods
 
 ## File Operations
 

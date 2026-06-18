@@ -63,6 +63,9 @@ func RegisterBuiltins() {
 	// HMAC operations
 	RegisterBuiltin("hmac", builtinHMAC)
 
+	// WebSocket operations
+	RegisterBuiltin("websocket", builtinWebSocket)
+
 	// String operations
 	RegisterBuiltin("upper", builtinUpper)
 	RegisterBuiltin("lower", builtinLower)

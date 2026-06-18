@@ -1,8 +1,10 @@
 package runtime
 
 import (
+	"crypto/rand"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -15,14 +17,58 @@ type WebSocketConnection struct {
 	ws     *websocket.Conn
 	closed bool
 	mutex  sync.Mutex
+	id     string
 }
 
-// NewWebSocketConnection creates a new WebSocket connection wrapper
+// NewWebSocketConnection creates a new WebSocket connection wrapper (server-side)
 func NewWebSocketConnection(ws *websocket.Conn) *WebSocketConnection {
 	return &WebSocketConnection{
 		ws:     ws,
 		closed: false,
+		id:     generateUUIDv4(),
 	}
+}
+
+// NewWebSocketClientConnection creates a client WebSocket connection
+func NewWebSocketClientConnection(urlStr string, headers map[string]string) (*WebSocketConnection, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid WebSocket URL: %w", err)
+	}
+
+	// Convert http/https to ws/wss
+	switch u.Scheme {
+	case "http":
+		u.Scheme = "ws"
+	case "https":
+		u.Scheme = "wss"
+	case "ws", "wss":
+		// Already correct
+	default:
+		return nil, fmt.Errorf("unsupported scheme: %s (use http, https, ws, or wss)", u.Scheme)
+	}
+
+	// Dial the WebSocket
+	config, err := websocket.NewConfig(u.String(), u.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid WebSocket config: %w", err)
+	}
+
+	// Add custom headers
+	for k, v := range headers {
+		config.Header.Set(k, v)
+	}
+
+	ws, err := websocket.DialConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("WebSocket connection failed: %w", err)
+	}
+
+	return &WebSocketConnection{
+		ws:     ws,
+		closed: false,
+		id:     generateUUIDv4(),
+	}, nil
 }
 
 // Accept accepts the WebSocket connection (protocol handshake already done by upgrade)
@@ -38,16 +84,9 @@ func (wsc *WebSocketConnection) Accept() error {
 	return nil
 }
 
-// Receive blocks until a message is received or connection closes
-// Returns the message string, or error on disconnect
-func (wsc *WebSocketConnection) Receive() (string, error) {
-	return wsc.ReceiveWithTimeout(nil)
-}
-
-// ReceiveWithTimeout blocks until a message is received, timeout expires, or connection closes
-// If timeout is nil, blocks indefinitely
-// Returns the message string, or error on disconnect/timeout
-func (wsc *WebSocketConnection) ReceiveWithTimeout(timeout *time.Duration) (string, error) {
+// Read blocks until a message is received or connection closes
+// Returns the message string, or empty string on disconnect/timeout
+func (wsc *WebSocketConnection) Read(timeout *time.Duration) (string, error) {
 	wsc.mutex.Lock()
 	if wsc.closed {
 		wsc.mutex.Unlock()
@@ -86,8 +125,8 @@ func (wsc *WebSocketConnection) ReceiveWithTimeout(timeout *time.Duration) (stri
 	return msg, nil
 }
 
-// Send sends a message to the WebSocket client
-func (wsc *WebSocketConnection) Send(message string) error {
+// Write sends a message to the WebSocket client
+func (wsc *WebSocketConnection) Write(message string) error {
 	wsc.mutex.Lock()
 	defer wsc.mutex.Unlock()
 
@@ -116,6 +155,26 @@ func (wsc *WebSocketConnection) IsConnected() bool {
 	wsc.mutex.Lock()
 	defer wsc.mutex.Unlock()
 	return !wsc.closed
+}
+
+// ID returns the unique identifier for this connection
+func (wsc *WebSocketConnection) ID() string {
+	return wsc.id
+}
+
+// generateUUIDv4 generates a UUID v4 (random) string
+func generateUUIDv4() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("ws_%d", time.Now().UnixNano())
+	}
+
+	// Set version 4 (random) and variant bits
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant
+
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // IsWebSocketUpgrade checks if the request is a WebSocket upgrade request

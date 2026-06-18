@@ -1377,7 +1377,7 @@ func (s *HTTPServerValue) handleWebSocketRequest(w http.ResponseWriter, r *http.
 
 		// Parse handler script
 		if s.FileReader == nil {
-			conn.Send(`{"error": "Server not properly configured"}`)
+			conn.Write(`{"error": "Server not properly configured"}`)
 			conn.Close()
 			return
 		}
@@ -1393,14 +1393,14 @@ func (s *HTTPServerValue) handleWebSocketRequest(w http.ResponseWriter, r *http.
 		frame.Filename = resolvedHandlerPath
 
 		if s.Interpreter == nil {
-			conn.Send(`{"error": "Handler execution requires interpreter"}`)
+			conn.Write(`{"error": "Handler execution requires interpreter"}`)
 			conn.Close()
 			return
 		}
 
 		program, err := s.Interpreter.ParseScript(resolvedHandlerPath)
 		if err != nil {
-			conn.Send(fmt.Sprintf(`{"error": "Handler script parse error: %v"}`, err))
+			conn.Write(fmt.Sprintf(`{"error": "Handler script parse error: %v"}`, err))
 			conn.Close()
 			return
 		}
@@ -2321,7 +2321,7 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 				}
 			}
 
-			msg, err := wsConn.ReceiveWithTimeout(timeout)
+			msg, err := wsConn.Read(timeout)
 			if err != nil {
 				return nil, err
 			}
@@ -2339,7 +2339,7 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 				return nil, fmt.Errorf("write() requires a message argument")
 			}
 			msgStr := fmt.Sprintf("%v", msg)
-			return nil, wsConn.Send(msgStr)
+			return nil, wsConn.Write(msgStr)
 		}),
 
 		// close() - Close the WebSocket connection

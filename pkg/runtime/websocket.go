@@ -12,25 +12,93 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// Global registry of active WebSocket connections keyed by connection ID
+var (
+	wsConnRegistry = make(map[string]*WebSocketConnection)
+	wsConnMutex    sync.RWMutex
+)
+
+// WebSocketConfig holds configuration for WebSocket connections
+type WebSocketConfig struct {
+	ReadQueueSize         int
+	WriteQueueSize        int
+	DefaultReadTimeout    time.Duration
+	IdleTimeout           time.Duration // 0 = no idle disconnect
+	MaxMessageSize        int64          // 0 = unlimited
+	MaxMessagesPerSecond  int            // 0 = unlimited
+}
+
+// DefaultWebSocketConfig returns sensible defaults
+func DefaultWebSocketConfig() WebSocketConfig {
+	return WebSocketConfig{
+		ReadQueueSize:        100,
+		WriteQueueSize:       100,
+		DefaultReadTimeout:   30 * time.Second,
+		IdleTimeout:          300 * time.Second, // 5 minutes
+		MaxMessageSize:       65536,             // 64KB
+		MaxMessagesPerSecond: 0,                 // 0 = unlimited
+	}
+}
+
 // WebSocketConnection represents an active WebSocket connection in Duso
 type WebSocketConnection struct {
-	ws     *websocket.Conn
-	closed bool
-	mutex  sync.Mutex
-	id     string
+	ws                *websocket.Conn
+	closed            bool
+	mutex             sync.Mutex
+	id                string
+	config            WebSocketConfig
+	readQ             chan string
+	writeQ            chan string
+	readDone          chan struct{}
+	doneMu            sync.Once
+	lastActivityTime  time.Time // Track idle timeout
+	violationCount    int       // Rate limit violation counter
+	lastViolationTime time.Time // For violation decay
+	tokens            float64   // Token bucket for rate limiting
 }
 
 // NewWebSocketConnection creates a new WebSocket connection wrapper (server-side)
 func NewWebSocketConnection(ws *websocket.Conn) *WebSocketConnection {
-	return &WebSocketConnection{
-		ws:     ws,
-		closed: false,
-		id:     generateUUIDv4(),
+	return NewWebSocketConnectionWithConfig(ws, DefaultWebSocketConfig())
+}
+
+// NewWebSocketConnectionWithConfig creates a connection with custom config
+func NewWebSocketConnectionWithConfig(ws *websocket.Conn, config WebSocketConfig) *WebSocketConnection {
+	conn := &WebSocketConnection{
+		ws:               ws,
+		closed:           false,
+		id:               generateUUIDv4(),
+		config:           config,
+		readQ:            make(chan string, config.ReadQueueSize),
+		writeQ:           make(chan string, config.WriteQueueSize),
+		readDone:         make(chan struct{}),
+		lastActivityTime: time.Now(),
 	}
+
+	// Register in global registry
+	RegisterConnection(conn)
+
+	// Start background reader goroutine
+	go conn.backgroundReader()
+
+	// Start background writer goroutine
+	go conn.backgroundWriter()
+
+	// Start idle timeout monitor if configured
+	if config.IdleTimeout > 0 {
+		go conn.idleTimeoutMonitor()
+	}
+
+	return conn
 }
 
 // NewWebSocketClientConnection creates a client WebSocket connection
 func NewWebSocketClientConnection(urlStr string, headers map[string]string) (*WebSocketConnection, error) {
+	return NewWebSocketClientConnectionWithConfig(urlStr, headers, DefaultWebSocketConfig())
+}
+
+// NewWebSocketClientConnectionWithConfig creates a client connection with custom config
+func NewWebSocketClientConnectionWithConfig(urlStr string, headers map[string]string, config WebSocketConfig) (*WebSocketConnection, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid WebSocket URL: %w", err)
@@ -49,26 +117,44 @@ func NewWebSocketClientConnection(urlStr string, headers map[string]string) (*We
 	}
 
 	// Dial the WebSocket
-	config, err := websocket.NewConfig(u.String(), u.String())
+	wsConfig, err := websocket.NewConfig(u.String(), u.String())
 	if err != nil {
 		return nil, fmt.Errorf("invalid WebSocket config: %w", err)
 	}
 
 	// Add custom headers
 	for k, v := range headers {
-		config.Header.Set(k, v)
+		wsConfig.Header.Set(k, v)
 	}
 
-	ws, err := websocket.DialConfig(config)
+	ws, err := websocket.DialConfig(wsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("WebSocket connection failed: %w", err)
 	}
 
-	return &WebSocketConnection{
-		ws:     ws,
-		closed: false,
-		id:     generateUUIDv4(),
-	}, nil
+	conn := &WebSocketConnection{
+		ws:               ws,
+		closed:           false,
+		id:               generateUUIDv4(),
+		config:           config,
+		readQ:            make(chan string, config.ReadQueueSize),
+		writeQ:           make(chan string, config.WriteQueueSize),
+		readDone:         make(chan struct{}),
+		lastActivityTime: time.Now(),
+	}
+
+	// Start background reader goroutine
+	go conn.backgroundReader()
+
+	// Start background writer goroutine
+	go conn.backgroundWriter()
+
+	// Start idle timeout monitor if configured
+	if config.IdleTimeout > 0 {
+		go conn.idleTimeoutMonitor()
+	}
+
+	return conn, nil
 }
 
 // Accept accepts the WebSocket connection (protocol handshake already done by upgrade)
@@ -84,70 +170,122 @@ func (wsc *WebSocketConnection) Accept() error {
 	return nil
 }
 
-// Read blocks until a message is received or connection closes
-// Returns the message string, or empty string on disconnect/timeout
+// Read checks the read queue, blocking with optional timeout if empty
+// Returns message string on success (including empty string), error on disconnect
+// If timeout is specified and expires, returns ("", nil) to indicate timeout
 func (wsc *WebSocketConnection) Read(timeout *time.Duration) (string, error) {
+	var timeoutChan <-chan time.Time
+	if timeout != nil {
+		timeoutChan = time.After(*timeout)
+	}
+
+	select {
+	case msg := <-wsc.readQ:
+		return msg, nil // Return message as-is, even if empty
+	case <-timeoutChan:
+		return "", nil // Timeout: return empty string (caller should check with explicit timeout check)
+	case <-wsc.readDone:
+		return "", fmt.Errorf("connection closed") // Connection closed: error indicates disconnect
+	}
+}
+
+// Write queues a message to the write queue
+// Returns number of bytes queued, or nil if queue is full
+func (wsc *WebSocketConnection) Write(message string) any {
 	wsc.mutex.Lock()
 	if wsc.closed {
 		wsc.mutex.Unlock()
-		return "", fmt.Errorf("connection closed")
+		return nil
 	}
 	wsc.mutex.Unlock()
 
-	if timeout != nil {
-		wsc.ws.SetReadDeadline(time.Now().Add(*timeout))
+	select {
+	case wsc.writeQ <- message:
+		return float64(len(message))
+	default:
+		return nil // Queue full
 	}
-
-	var msg string
-	err := websocket.Message.Receive(wsc.ws, &msg)
-
-	if err != nil {
-		wsc.mutex.Lock()
-		wsc.closed = true
-		wsc.mutex.Unlock()
-
-		// Return error on EOF/disconnect
-		if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "closed") {
-			return "", nil // Nil equivalent for disconnect
-		}
-		// Check for timeout
-		if strings.Contains(err.Error(), "deadline exceeded") || strings.Contains(err.Error(), "timeout") {
-			return "", nil // Nil equivalent for timeout
-		}
-		return "", fmt.Errorf("websocket receive error: %w", err)
-	}
-
-	// Clear read deadline after successful receive
-	if timeout != nil {
-		wsc.ws.SetReadDeadline(time.Time{})
-	}
-
-	return msg, nil
-}
-
-// Write sends a message to the WebSocket client
-func (wsc *WebSocketConnection) Write(message string) error {
-	wsc.mutex.Lock()
-	defer wsc.mutex.Unlock()
-
-	if wsc.closed {
-		return fmt.Errorf("connection closed")
-	}
-
-	return websocket.Message.Send(wsc.ws, message)
 }
 
 // Close closes the WebSocket connection
 func (wsc *WebSocketConnection) Close() error {
 	wsc.mutex.Lock()
-	defer wsc.mutex.Unlock()
-
 	if wsc.closed {
+		wsc.mutex.Unlock()
 		return nil
 	}
-
 	wsc.closed = true
+	wsc.mutex.Unlock()
+
+	// Unregister from global registry
+	UnregisterConnection(wsc.id)
+
+	// Signal readDone to wake up any waiting readers
+	wsc.doneMu.Do(func() {
+		close(wsc.readDone)
+	})
+
 	return wsc.ws.Close()
+}
+
+// backgroundReader reads from the WebSocket and queues messages
+func (wsc *WebSocketConnection) backgroundReader() {
+	defer func() {
+		wsc.mutex.Lock()
+		wsc.closed = true
+		wsc.mutex.Unlock()
+		wsc.doneMu.Do(func() {
+			close(wsc.readDone)
+		})
+	}()
+
+	for {
+		var msg string
+		err := websocket.Message.Receive(wsc.ws, &msg)
+		if err != nil {
+			return // Connection closed or error
+		}
+
+		// Update last activity time
+		wsc.mutex.Lock()
+		wsc.lastActivityTime = time.Now()
+		wsc.mutex.Unlock()
+
+		// Check message size limit
+		if wsc.config.MaxMessageSize > 0 && int64(len(msg)) > wsc.config.MaxMessageSize {
+			// Message too large - close connection
+			return
+		}
+
+		// Check rate limit
+		if wsc.checkRateLimit() {
+			// Rate limit exceeded, close connection
+			return
+		}
+
+		select {
+		case wsc.readQ <- msg:
+			// Queued successfully
+		case <-wsc.readDone:
+			return // Connection closing
+		}
+	}
+}
+
+// backgroundWriter drains the write queue and sends to WebSocket
+func (wsc *WebSocketConnection) backgroundWriter() {
+	defer wsc.ws.Close()
+
+	for msg := range wsc.writeQ {
+		if err := websocket.Message.Send(wsc.ws, msg); err != nil {
+			return // Send failed, connection is dead
+		}
+
+		// Update last activity time on successful write
+		wsc.mutex.Lock()
+		wsc.lastActivityTime = time.Now()
+		wsc.mutex.Unlock()
+	}
 }
 
 // IsConnected returns whether the connection is still open
@@ -160,6 +298,27 @@ func (wsc *WebSocketConnection) IsConnected() bool {
 // ID returns the unique identifier for this connection
 func (wsc *WebSocketConnection) ID() string {
 	return wsc.id
+}
+
+// RegisterConnection adds a connection to the global registry
+func RegisterConnection(conn *WebSocketConnection) {
+	wsConnMutex.Lock()
+	defer wsConnMutex.Unlock()
+	wsConnRegistry[conn.id] = conn
+}
+
+// UnregisterConnection removes a connection from the global registry
+func UnregisterConnection(connID string) {
+	wsConnMutex.Lock()
+	defer wsConnMutex.Unlock()
+	delete(wsConnRegistry, connID)
+}
+
+// GetConnection retrieves a connection by ID
+func GetConnection(connID string) *WebSocketConnection {
+	wsConnMutex.RLock()
+	defer wsConnMutex.RUnlock()
+	return wsConnRegistry[connID]
 }
 
 // generateUUIDv4 generates a UUID v4 (random) string
@@ -175,6 +334,95 @@ func generateUUIDv4() string {
 
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// idleTimeoutMonitor closes the connection if idle too long
+func (wsc *WebSocketConnection) idleTimeoutMonitor() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			wsc.mutex.Lock()
+			if wsc.closed {
+				wsc.mutex.Unlock()
+				return
+			}
+			if wsc.config.IdleTimeout > 0 {
+				elapsed := time.Since(wsc.lastActivityTime)
+				if elapsed >= wsc.config.IdleTimeout {
+					wsc.closed = true
+					wsc.mutex.Unlock()
+					wsc.doneMu.Do(func() {
+						close(wsc.readDone)
+					})
+					wsc.ws.Close()
+					UnregisterConnection(wsc.id)
+					return
+				}
+			}
+			wsc.mutex.Unlock()
+		case <-wsc.readDone:
+			return
+		}
+	}
+}
+
+// checkRateLimit checks if we're over the rate limit using token bucket
+// Returns true if message should be dropped, false if it's OK
+func (wsc *WebSocketConnection) checkRateLimit() bool {
+	if wsc.config.MaxMessagesPerSecond <= 0 {
+		return false // Rate limiting disabled
+	}
+
+	wsc.mutex.Lock()
+	defer wsc.mutex.Unlock()
+
+	now := time.Now()
+
+	// Initialize tokens on first call
+	if wsc.lastViolationTime.IsZero() {
+		wsc.tokens = float64(wsc.config.MaxMessagesPerSecond)
+		wsc.lastViolationTime = now
+		wsc.tokens-- // Consume 1 token for this message
+		return false
+	}
+
+	// Refill tokens based on time elapsed
+	elapsed := now.Sub(wsc.lastViolationTime).Seconds()
+	wsc.tokens += elapsed * float64(wsc.config.MaxMessagesPerSecond)
+
+	// Cap tokens at max (prevents accumulating huge buffer)
+	maxTokens := float64(wsc.config.MaxMessagesPerSecond) * 2
+	if wsc.tokens > maxTokens {
+		wsc.tokens = maxTokens
+	}
+
+	wsc.lastViolationTime = now
+
+	// Try to consume 1 token
+	if wsc.tokens >= 1.0 {
+		wsc.tokens -= 1.0
+		wsc.violationCount = 0 // Reset violation counter on success
+		return false
+	}
+
+	// Over limit - count violation
+	wsc.violationCount++
+	if wsc.violationCount >= 10 {
+		// Too many violations - close connection
+		wsc.closed = true
+		wsc.doneMu.Do(func() {
+			close(wsc.readDone)
+		})
+		go wsc.ws.Close()
+		UnregisterConnection(wsc.id)
+		return true
+	}
+
+	// Drop this message
+	return true
 }
 
 // IsWebSocketUpgrade checks if the request is a WebSocket upgrade request

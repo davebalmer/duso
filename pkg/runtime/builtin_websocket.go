@@ -7,6 +7,91 @@ import (
 	"github.com/duso-org/duso/pkg/script"
 )
 
+// builtinSendWebSocket sends a message to one or more WebSocket connections by ID
+// Usage: send_websocket(conn_id, message) or send_websocket([conn_ids], message)
+// Returns: bytes sent (number) for single connection, array of results for multiple, or nil if not found/queue full
+func builtinSendWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
+	// Get connection ID(s) - can be string or array of strings
+	var connIDs []string
+
+	if idArg, ok := args["0"]; ok {
+		switch v := idArg.(type) {
+		case string:
+			if v != "" {
+				connIDs = append(connIDs, v)
+			}
+		case []any:
+			for _, id := range v {
+				idStr := fmt.Sprintf("%v", id)
+				if idStr != "" {
+					connIDs = append(connIDs, idStr)
+				}
+			}
+		default:
+			idStr := fmt.Sprintf("%v", idArg)
+			if idStr != "" {
+				connIDs = append(connIDs, idStr)
+			}
+		}
+	} else if idArg, ok := args["conn_id"]; ok {
+		switch v := idArg.(type) {
+		case string:
+			if v != "" {
+				connIDs = append(connIDs, v)
+			}
+		case []any:
+			for _, id := range v {
+				idStr := fmt.Sprintf("%v", id)
+				if idStr != "" {
+					connIDs = append(connIDs, idStr)
+				}
+			}
+		default:
+			idStr := fmt.Sprintf("%v", idArg)
+			if idStr != "" {
+				connIDs = append(connIDs, idStr)
+			}
+		}
+	} else {
+		return nil, fmt.Errorf("send_websocket() requires a connection ID or array of IDs")
+	}
+
+	if len(connIDs) == 0 {
+		return nil, fmt.Errorf("send_websocket() connection ID(s) cannot be empty")
+	}
+
+	// Get message and stringify it
+	var message string
+	if msg, ok := args["1"]; ok {
+		message = fmt.Sprintf("%v", msg)
+	} else if msg, ok := args["message"]; ok {
+		message = fmt.Sprintf("%v", msg)
+	} else {
+		return nil, fmt.Errorf("send_websocket() requires a message")
+	}
+
+	// Single connection
+	if len(connIDs) == 1 {
+		conn := GetConnection(connIDs[0])
+		if conn == nil {
+			return nil, nil // Connection not found, return nil
+		}
+		return conn.Write(message), nil
+	}
+
+	// Multiple connections - return array of results
+	results := make([]any, len(connIDs))
+	for i, connID := range connIDs {
+		conn := GetConnection(connID)
+		if conn == nil {
+			results[i] = nil
+		} else {
+			results[i] = conn.Write(message)
+		}
+	}
+	return results, nil
+}
+
 // builtinWebSocket establishes a WebSocket client connection
 // Usage: websocket(url [, config])
 // Returns: WebSocket connection object with read(), write(), close(), is_connected(), and id methods
@@ -28,6 +113,8 @@ func builtinWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
 
 	// Get options from second positional or named argument
 	var headers map[string]string
+	wsConfig := DefaultWebSocketConfig()
+
 	if opts, ok := args["1"]; ok {
 		if optsMap, ok := opts.(map[string]any); ok {
 			headers = make(map[string]string)
@@ -37,6 +124,25 @@ func builtinWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
 						headers[k] = fmt.Sprintf("%v", v)
 					}
 				}
+			}
+			// Parse WebSocket config options
+			if readQSize, ok := optsMap["read_queue_size"].(float64); ok {
+				wsConfig.ReadQueueSize = int(readQSize)
+			}
+			if writeQSize, ok := optsMap["write_queue_size"].(float64); ok {
+				wsConfig.WriteQueueSize = int(writeQSize)
+			}
+			if readTimeout, ok := optsMap["read_timeout"].(float64); ok {
+				wsConfig.DefaultReadTimeout = time.Duration(readTimeout) * time.Second
+			}
+			if idleTimeout, ok := optsMap["idle_timeout"].(float64); ok {
+				wsConfig.IdleTimeout = time.Duration(idleTimeout) * time.Second
+			}
+			if maxMsgSize, ok := optsMap["max_message_size"].(float64); ok {
+				wsConfig.MaxMessageSize = int64(maxMsgSize)
+			}
+			if maxMsgPerSec, ok := optsMap["max_messages_per_second"].(float64); ok {
+				wsConfig.MaxMessagesPerSecond = int(maxMsgPerSec)
 			}
 		}
 	} else if opts, ok := args["config"]; ok {
@@ -49,13 +155,32 @@ func builtinWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
 					}
 				}
 			}
+			// Parse WebSocket config options
+			if readQSize, ok := optsMap["read_queue_size"].(float64); ok {
+				wsConfig.ReadQueueSize = int(readQSize)
+			}
+			if writeQSize, ok := optsMap["write_queue_size"].(float64); ok {
+				wsConfig.WriteQueueSize = int(writeQSize)
+			}
+			if readTimeout, ok := optsMap["read_timeout"].(float64); ok {
+				wsConfig.DefaultReadTimeout = time.Duration(readTimeout) * time.Second
+			}
+			if idleTimeout, ok := optsMap["idle_timeout"].(float64); ok {
+				wsConfig.IdleTimeout = time.Duration(idleTimeout) * time.Second
+			}
+			if maxMsgSize, ok := optsMap["max_message_size"].(float64); ok {
+				wsConfig.MaxMessageSize = int64(maxMsgSize)
+			}
+			if maxMsgPerSec, ok := optsMap["max_messages_per_second"].(float64); ok {
+				wsConfig.MaxMessagesPerSecond = int(maxMsgPerSec)
+			}
 		}
 	} else {
 		headers = make(map[string]string)
 	}
 
-	// Connect to WebSocket
-	conn, err := NewWebSocketClientConnection(url, headers)
+	// Connect to WebSocket with config
+	conn, err := NewWebSocketClientConnectionWithConfig(url, headers, wsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -80,12 +205,9 @@ func builtinWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
 
 			msg, err := conn.Read(timeout)
 			if err != nil {
-				return nil, err
+				return nil, nil // Connection closed
 			}
-			if msg == "" {
-				return nil, nil // Return nil (not empty string) on disconnect/timeout
-			}
-			return msg, nil
+			return msg, nil // Return actual message (including empty string)
 		}),
 		"write": script.NewGoFunction(func(evaluator *Evaluator, args map[string]any) (any, error) {
 			msg, ok := args["0"]
@@ -93,7 +215,7 @@ func builtinWebSocket(evaluator *Evaluator, args map[string]any) (any, error) {
 				return nil, fmt.Errorf("write() requires a message argument")
 			}
 			msgStr := fmt.Sprintf("%v", msg)
-			return nil, conn.Write(msgStr)
+			return conn.Write(msgStr), nil // Returns bytes (number) or nil on queue full
 		}),
 		"close": script.NewGoFunction(func(evaluator *Evaluator, args map[string]any) (any, error) {
 			return nil, conn.Close()

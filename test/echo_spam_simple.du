@@ -1,0 +1,27 @@
+// Simple spam test - spawn N concurrent workers against the echo server
+
+print("=== WebSocket Spam Test ===")
+print("")
+
+num_workers = 5
+msg_count = 20
+
+print("Spawning " + num_workers + " workers with " + msg_count + " messages each...")
+print("")
+
+// Give server time to start
+sleep(0.5)
+
+// Spawn workers
+for i = 1, num_workers do
+  spawn("spam_worker.du", {
+    worker_id = i,
+    msg_count = msg_count
+  })
+end
+
+// Wait for workers to finish
+sleep(5)
+
+print("")
+print("✓ All workers completed")

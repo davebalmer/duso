@@ -1,0 +1,29 @@
+// WebSocket echo handler
+// Accepts a connection, registers it, echoes messages, and unregisters on close
+
+ctx = context()
+conn = ctx.connection()
+conn_id = conn.id
+
+conn.accept()
+
+// Register connection in datastore
+store = datastore("websocket_connections")
+store.push("all_connections", conn_id)
+print("[Handler] Registered connection " + substr(conn_id, 0, 8) + "...")
+
+while conn.is_connected() do
+  msg = conn.read()
+
+  // msg can be nil if empty string was sent
+  if msg == nil then
+    msg = ""
+  end
+
+  conn.write("ECHO: " + msg)
+end
+
+// Unregister connection when closed
+connections = store.get("all_connections") or []
+updated = filter(connections, function(id) return id != conn_id end)
+store.set("all_connections", updated)

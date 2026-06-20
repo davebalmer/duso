@@ -1,0 +1,29 @@
+// Simple spam worker - spawned by echo_spam_test.du
+// Takes parameters from context
+
+ctx = context()
+worker_id = ctx.worker_id or 1
+msg_count = ctx.msg_count or 30
+
+try
+  ws = websocket("ws://localhost:9999/echo")
+catch (err)
+  print("Worker " + worker_id + ": Failed to connect")
+  exit(1)
+end
+
+// Send messages
+for i = 1, msg_count do
+  ws.write("worker_" + worker_id + "_msg_" + i)
+end
+
+// Read some responses
+for i = 1, msg_count do
+  msg = ws.read(timeout = 1)
+  if msg == nil then
+    break
+  end
+end
+
+ws.close()
+print("Worker " + worker_id + " done")

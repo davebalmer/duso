@@ -1,0 +1,167 @@
+// WebSocket spam test - spawns N concurrent clients to stress test the server
+// Tests rate limiting, message size limits, and connection limits
+
+print("=== WebSocket Spam Test ===")
+print("")
+
+// Number of concurrent clients (default 5)
+num_clients = 5
+
+// Give server time to start
+sleep(0.5)
+
+function spam_client(client_num)
+  results = {
+    num = client_num,
+    connected = false,
+    messages_sent = 0,
+    echoes_received = 0,
+    rate_limit_hits = 0,
+    size_limit_hit = false,
+    connection_dropped = false,
+    errors = 0
+  }
+
+  try
+    ws = websocket("ws://localhost:9999/echo")
+    results.connected = true
+  catch (err)
+    results.errors = results.errors + 1
+    return results
+  end
+
+  // Send rapid messages (should trigger rate limiting)
+  print("  [Client " + client_num + "] Sending rapid messages...")
+  for i = 1, 30 do
+    try
+      ws.write("msg_" + i)
+      results.messages_sent = results.messages_sent + 1
+    catch (err)
+      // Rate limiting might cause this to fail
+      results.rate_limit_hits = results.rate_limit_hits + 1
+    end
+  end
+
+  // Try to read echoes with timeout
+  print("  [Client " + client_num + "] Reading echoes...")
+  start = now()
+  while now() - start < 3 do
+    resp = ws.read(timeout = 0.5)
+    if resp then
+      results.echoes_received = results.echoes_received + 1
+    end
+  end
+
+  // Try to send oversized message (should be rejected)
+  print("  [Client " + client_num + "] Testing message size limit...")
+  huge_msg = ""
+  for i = 1, 100 do
+    huge_msg = huge_msg + "this_is_a_very_long_message_"
+  end
+
+  try
+    ws.write(huge_msg)
+    // If we sent it, try to read response
+    resp = ws.read(timeout = 1)
+    if resp == nil then
+      results.connection_dropped = true
+    end
+  catch (err)
+    results.size_limit_hit = true
+  end
+
+  // Try normal message to check if connection still works
+  print("  [Client " + client_num + "] Testing connection recovery...")
+  try
+    ws.write("final_test")
+    resp = ws.read(timeout = 1)
+    if resp == nil then
+      results.connection_dropped = true
+    end
+  catch (err)
+    results.connection_dropped = true
+  end
+
+  ws.close()
+  return results
+end
+
+// Spawn N concurrent clients
+print("Spawning " + num_clients + " concurrent clients...")
+print("")
+
+client_results = []
+for i = 1, num_clients do
+  result = spawn(function()
+    return spam_client(i)
+  end)
+  push(client_results, result)
+end
+
+// Wait for all clients
+print("Waiting for clients to complete...")
+all_results = []
+for result_promise in client_results do
+  result = wait(result_promise)
+  if result then
+    push(all_results, result)
+  end
+end
+
+// Summarize results
+print("")
+print("=== Results ===")
+print("")
+
+total_connected = 0
+total_messages = 0
+total_echoes = 0
+total_rate_limits = 0
+total_size_hits = 0
+total_dropped = 0
+total_errors = 0
+
+for r in all_results do
+  print("Client " + r.num + ":")
+  print("  Connected: " + r.connected)
+  print("  Messages sent: " + r.messages_sent)
+  print("  Echoes received: " + r.echoes_received)
+  print("  Rate limit hits: " + r.rate_limit_hits)
+  print("  Size limit hit: " + r.size_limit_hit)
+  print("  Connection dropped: " + r.connection_dropped)
+  if r.errors > 0 then
+    print("  Errors: " + r.errors)
+  end
+  print("")
+
+  if r.connected then
+    total_connected = total_connected + 1
+  end
+  total_messages = total_messages + r.messages_sent
+  total_echoes = total_echoes + r.echoes_received
+  total_rate_limits = total_rate_limits + r.rate_limit_hits
+  if r.size_limit_hit then
+    total_size_hits = total_size_hits + 1
+  end
+  if r.connection_dropped then
+    total_dropped = total_dropped + 1
+  end
+  total_errors = total_errors + r.errors
+end
+
+print("=== Summary ===")
+print("Clients connected: " + total_connected + "/" + num_clients)
+print("Total messages sent: " + total_messages)
+print("Total echoes received: " + total_echoes)
+print("Rate limit hits: " + total_rate_limits)
+print("Size limit hits: " + total_size_hits)
+print("Connections dropped: " + total_dropped)
+print("Errors: " + total_errors)
+print("")
+
+if total_errors > 0 or total_connected < (num_clients - 2) then
+  print("✗ Test had issues")
+  exit(1)
+end
+
+print("✓ Spam test completed")

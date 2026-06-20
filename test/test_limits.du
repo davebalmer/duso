@@ -1,0 +1,43 @@
+// Test WebSocket limits: message size, rate limiting, connection limit
+
+print("=== WebSocket Limits Test ===")
+print("")
+print("Server limits:")
+print("  - max_message_size: 256 bytes")
+print("  - max_messages_per_second: 20")
+print("  - max_websocket_connections: 10")
+print("")
+
+sleep(1)
+
+print("Test 1: Normal messages (should work)")
+print("")
+spawn("limit_test_worker.du", {worker_id = 1, test_type = "normal"})
+
+sleep(2)
+
+print("")
+print("Test 2: Large messages (should fail/disconnect)")
+print("")
+spawn("limit_test_worker.du", {worker_id = 2, test_type = "large"})
+
+sleep(2)
+
+print("")
+print("Test 3: Rapid messages (should trigger rate limiting)")
+print("")
+spawn("limit_test_worker.du", {worker_id = 3, test_type = "rapid"})
+
+sleep(2)
+
+print("")
+print("Test 4: Multiple rapid senders (stress test)")
+print("")
+for i = 1, 3 do
+  spawn("limit_test_worker.du", {worker_id = (10 + i), test_type = "rapid"})
+end
+
+sleep(5)
+
+print("")
+print("=== Limits Test Complete ===")

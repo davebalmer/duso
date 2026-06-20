@@ -1,0 +1,30 @@
+// WebSocket echo server for testing
+// Routes WS connections to /echo and echoes back everything received
+// Also spawns a background ping sender
+
+ctx = context()
+
+if ctx == nil then
+  // Server setup mode
+  server = http_server({
+    port = 9999,
+    max_websocket_connections = 10,
+    websocket = {
+      idle_timeout = 60,
+      max_message_size = 256,
+      max_messages_per_second = 20,
+      read_queue_size = 100,
+      write_queue_size = 100
+    }
+  })
+  server.route("WS", "/echo", "test/echo_handler.du")
+
+  // Spawn background ping sender
+  spawn("./ping_sender.du")
+
+  print("WebSocket echo server listening on ws://localhost:9999/echo")
+  print("Limits: max_connections=10, max_message_size=256B, max_messages_per_second=20")
+  print("Background ping sender started")
+  server.start()
+  print("Server stopped")
+end

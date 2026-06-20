@@ -62,35 +62,38 @@ type UploadConfig struct {
 // HTTPServerValue represents an HTTP server in Duso.
 // It manages routes and spawns handler scripts for incoming requests.
 type HTTPServerValue struct {
-	Port                  int
-	Address               string // bind address (default "0.0.0.0")
-	TLSEnabled            bool
-	CertFile              string
-	KeyFile               string
-	Timeout               time.Duration     // Socket-level read/write timeout
-	RequestHandlerTimeout time.Duration     // Handler script execution timeout
-	ShowDirectoryListing  bool              // Show directory listing when no default file found
-	DefaultFiles          []string          // Default filenames to try in order (e.g., index.html, index.md)
-	CacheControl          string            // Default Cache-Control header (e.g., "no-cache, no-store, must-revalidate")
-	CORS                  CORSConfig        // CORS configuration
-	JWT                   JWTConfig         // JWT configuration
-	Upload                UploadConfig      // Upload configuration
-	MaxBodySize           int64             // Max request body size in bytes (default: 10MB)
-	MaxHeaderSize         int64             // Max per-header size in bytes (default: 8KB)
-	MaxHeaders            int               // Max number of headers (default: 100)
-	MaxFormFields         int               // Max form fields in multipart (default: 1000)
-	IdleTimeout           time.Duration     // Idle connection timeout (default: 120s)
-	AccessLog             bool              // Enable access logging to stderr (default: true)
-	StaticCacheControl    string            // Cache-Control header for static files (default: "public, max-age=3600")
-	routes                map[string]*Route // key: "METHOD /path"
-	sortedRouteKeys       []string          // Routes sorted by path length (descending)
-	routeMutex            sync.RWMutex
-	server                *http.Server
-	Interpreter           *script.Interpreter // Interpreter for getting current script path
-	FileReader            func(string) ([]byte, error)
-	FileStatter           func(string) int64 // Returns mtime, 0 if error
-	DirReader             func(string) ([]map[string]any, error) // Lists directory contents, supports /EMBED/ and /STORE/
-	startedChan           chan error         // Channel to communicate startup errors
+	Port                      int
+	Address                   string // bind address (default "0.0.0.0")
+	TLSEnabled                bool
+	CertFile                  string
+	KeyFile                   string
+	Timeout                   time.Duration     // Socket-level read/write timeout
+	RequestHandlerTimeout     time.Duration     // Handler script execution timeout
+	ShowDirectoryListing      bool              // Show directory listing when no default file found
+	DefaultFiles              []string          // Default filenames to try in order (e.g., index.html, index.md)
+	CacheControl              string            // Default Cache-Control header (e.g., "no-cache, no-store, must-revalidate")
+	CORS                      CORSConfig        // CORS configuration
+	JWT                       JWTConfig         // JWT configuration
+	Upload                    UploadConfig      // Upload configuration
+	WebSocket                 WebSocketConfig   // WebSocket configuration
+	MaxWebSocketConnections   int               // Max concurrent WebSocket connections (0 = unlimited)
+	MaxBodySize               int64             // Max request body size in bytes (default: 10MB)
+	MaxHeaderSize             int64             // Max per-header size in bytes (default: 8KB)
+	MaxHeaders                int               // Max number of headers (default: 100)
+	MaxFormFields             int               // Max form fields in multipart (default: 1000)
+	IdleTimeout               time.Duration     // Idle connection timeout (default: 120s)
+	AccessLog                 bool              // Enable access logging to stderr (default: true)
+	StaticCacheControl        string            // Cache-Control header for static files (default: "public, max-age=3600")
+	routes                    map[string]*Route // key: "METHOD /path"
+	sortedRouteKeys           []string          // Routes sorted by path length (descending)
+	routeMutex                sync.RWMutex
+	server                    *http.Server
+	Interpreter               *script.Interpreter // Interpreter for getting current script path
+	FileReader                func(string) ([]byte, error)
+	FileStatter               func(string) int64 // Returns mtime, 0 if error
+	DirReader                 func(string) ([]map[string]any, error) // Lists directory contents, supports /EMBED/ and /STORE/
+	startedChan               chan error         // Channel to communicate startup errors
+	wsConnectionCount          int               // Current WebSocket connection count (protected by routeMutex)
 }
 
 // gzipResponseWriter wraps http.ResponseWriter to compress with gzip
@@ -940,6 +943,19 @@ func (s *HTTPServerValue) StartWithContext(procCtx context.Context) error {
 
 		// Handle WebSocket routes
 		if route.IsWebSocket {
+			// Check max connections limit
+			if s.MaxWebSocketConnections > 0 {
+				s.routeMutex.RLock()
+				currentCount := s.wsConnectionCount
+				s.routeMutex.RUnlock()
+
+				if currentCount >= s.MaxWebSocketConnections {
+					http.Error(w, "Service Unavailable: WebSocket connection limit reached", http.StatusServiceUnavailable)
+					s.logAccessRequest(r, http.StatusServiceUnavailable, 0)
+					return
+				}
+			}
+
 			s.handleWebSocketRequest(w, r, route, pathParams)
 			// WebSocket handling logs its own access
 			return
@@ -1342,8 +1358,18 @@ func (s *HTTPServerValue) handleWebSocketRequest(w http.ResponseWriter, r *http.
 	// Use websocket.Handler to perform the upgrade
 	// The handler function runs in its own goroutine for each connection
 	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
-		// Create WebSocket connection wrapper
-		conn := NewWebSocketConnection(ws)
+		// Create WebSocket connection wrapper with server config
+		conn := NewWebSocketConnectionWithConfig(ws, s.WebSocket)
+
+		// Track connection count
+		s.routeMutex.Lock()
+		s.wsConnectionCount++
+		s.routeMutex.Unlock()
+		defer func() {
+			s.routeMutex.Lock()
+			s.wsConnectionCount--
+			s.routeMutex.Unlock()
+		}()
 
 		// Create invocation frame for this WebSocket route
 		frame := &script.InvocationFrame{
@@ -2300,6 +2326,9 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 
 	// Create WebSocket connection methods object
 	wsMethods := map[string]any{
+		// id - Unique identifier for this connection
+		"id": wsConn.ID(),
+
 		// accept() - Accept the WebSocket connection
 		"accept": script.NewGoFunction(func(evaluator *script.Evaluator, args map[string]any) (any, error) {
 			return nil, wsConn.Accept()
@@ -2323,13 +2352,9 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 
 			msg, err := wsConn.Read(timeout)
 			if err != nil {
-				return nil, err
+				return nil, nil // Connection closed
 			}
-			// Return nil equivalent for Duso on empty message (connection closed or timeout)
-			if msg == "" {
-				return nil, nil
-			}
-			return msg, nil
+			return msg, nil // Return actual message (including empty string)
 		}),
 
 		// write(message) - Send a message to the WebSocket client
@@ -2339,7 +2364,7 @@ func (rc *RequestContext) GetWSConnection() map[string]any {
 				return nil, fmt.Errorf("write() requires a message argument")
 			}
 			msgStr := fmt.Sprintf("%v", msg)
-			return nil, wsConn.Write(msgStr)
+			return wsConn.Write(msgStr), nil // Returns bytes (number) or nil on queue full
 		}),
 
 		// close() - Close the WebSocket connection

@@ -65,6 +65,7 @@ func RegisterBuiltins() {
 
 	// WebSocket operations
 	RegisterBuiltin("websocket", builtinWebSocket)
+	RegisterBuiltin("send_websocket", builtinSendWebSocket)
 
 	// String operations
 	RegisterBuiltin("upper", builtinUpper)

@@ -1,0 +1,23 @@
+// Background ping sender
+// Broadcasts "ping" messages to all open WebSocket connections every 5 seconds
+
+print("[PingSender] Started")
+store = datastore("websocket_connections")
+
+ping_count = 0
+while true do
+  sleep(5)
+
+  // Get all registered connections
+  conn_ids = store.get("all_connections") or []
+  ping_count = ping_count + 1
+
+  print("[PingSender] Ping #" + ping_count + ", active connections: " + len(conn_ids))
+
+  if len(conn_ids) > 0 then
+    for conn_id in conn_ids do
+      result = send_websocket(conn_id, "PING")
+      print("[PingSender] Sent to " + substr(conn_id, 0, 8) + "..., result: " + tostring(result))
+    end
+  end
+end

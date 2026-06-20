@@ -294,6 +294,49 @@ func builtinHTTPServer(evaluator *Evaluator, args map[string]any) (any, error) {
 		server.Upload.MaxSize = 10 * 1024 * 1024 // 10MB default
 	}
 
+	// Parse WebSocket config
+	server.WebSocket = DefaultWebSocketConfig() // Start with defaults
+	if wsRaw, ok := config["websocket"]; ok {
+		if wsMap, ok := wsRaw.(map[string]any); ok {
+			// Parse read_queue_size
+			if readQSize, ok := wsMap["read_queue_size"].(float64); ok {
+				server.WebSocket.ReadQueueSize = int(readQSize)
+			}
+
+			// Parse write_queue_size
+			if writeQSize, ok := wsMap["write_queue_size"].(float64); ok {
+				server.WebSocket.WriteQueueSize = int(writeQSize)
+			}
+
+			// Parse read_timeout in seconds
+			if readTimeout, ok := wsMap["read_timeout"].(float64); ok {
+				server.WebSocket.DefaultReadTimeout = time.Duration(readTimeout) * time.Second
+			}
+
+			// Parse idle_timeout in seconds (0 = disabled)
+			if idleTimeout, ok := wsMap["idle_timeout"].(float64); ok {
+				server.WebSocket.IdleTimeout = time.Duration(idleTimeout) * time.Second
+			}
+
+			// Parse max_message_size in bytes (0 = unlimited)
+			if maxMsgSize, ok := wsMap["max_message_size"].(float64); ok {
+				server.WebSocket.MaxMessageSize = int64(maxMsgSize)
+			}
+
+			// Parse max_messages_per_second (0 = unlimited)
+			if maxMsgPerSec, ok := wsMap["max_messages_per_second"].(float64); ok {
+				server.WebSocket.MaxMessagesPerSecond = int(maxMsgPerSec)
+			}
+		}
+	}
+
+	// Parse max_websocket_connections (server-level limit, 0 = unlimited)
+	if maxWSConns, ok := config["max_websocket_connections"]; ok {
+		if count, ok := maxWSConns.(float64); ok {
+			server.MaxWebSocketConnections = int(count)
+		}
+	}
+
 	// Parse resource limits
 	if maxBodySize, ok := config["max_body_size"]; ok {
 		if sizeNum, ok := maxBodySize.(float64); ok {

@@ -1,0 +1,74 @@
+// Test worker that violates WebSocket limits
+
+ctx = context()
+worker_id = ctx.worker_id or 1
+test_type = ctx.test_type or "normal"  // normal, rapid, large
+
+print("Worker " + worker_id + " testing: " + test_type)
+
+try
+  ws = websocket("ws://localhost:9999/echo")
+catch (err)
+  print("Worker " + worker_id + ": Connection failed - " + err)
+  exit(1)
+end
+
+if test_type == "normal" then
+  // Send normal messages
+  for i = 1, 5 do
+    ws.write("normal_" + i)
+    msg = ws.read(timeout = 1)
+    if msg then
+      print("Worker " + worker_id + ": Got echo: " + substr(msg, 0, 20))
+    end
+  end
+
+elseif test_type == "rapid" then
+  // Try to send many messages rapidly (exceed rate limit of 20/sec)
+  print("Worker " + worker_id + ": Sending 50 rapid messages...")
+  sent = 0
+  for i = 1, 50 do
+    ws.write("rapid_" + i)
+    sent = sent + 1
+  end
+  print("Worker " + worker_id + ": Sent " + sent + " messages")
+
+  // Try to read responses
+  received = 0
+  for i = 1, 10 do
+    msg = ws.read(timeout = 0.5)
+    if msg then
+      received = received + 1
+    end
+  end
+  print("Worker " + worker_id + ": Received " + received + " responses")
+
+elseif test_type == "large" then
+  // Try to send oversized message (limit is 256 bytes)
+  print("Worker " + worker_id + ": Trying to send large message (>256 bytes)...")
+  huge_msg = ""
+  for i = 1, 20 do
+    huge_msg = huge_msg + "this_is_a_very_long_message_string_"
+  end
+  print("Worker " + worker_id + ": Message size: " + len(huge_msg) + " bytes")
+
+  try
+    ws.write(huge_msg)
+    print("Worker " + worker_id + ": Sent large message, waiting for response...")
+    msg = ws.read(timeout = 1)
+    if msg == nil then
+      print("Worker " + worker_id + ": Connection appears closed")
+    else
+      print("Worker " + worker_id + ": Got response: " + substr(msg, 0, 20))
+    end
+  catch (err)
+    print("Worker " + worker_id + ": Error sending large message - " + err)
+  end
+end
+
+try
+  ws.close()
+  print("Worker " + worker_id + ": Closed")
+catch (err)
+  print("Worker " + worker_id + ": Close error - " + err)
+end

@@ -1,0 +1,83 @@
+// WebSocket echo client test
+// Connects to echo server, sends messages, verifies echoes
+// Also listens for background pings for 20 seconds
+
+print("=== WebSocket Echo Client Test ===")
+print("")
+
+// Give server time to start
+sleep(0.5)
+
+try
+  ws = websocket("ws://localhost:9999/echo")
+  print("✓ Connected to server (ID: " + substr(ws.id, 0, 8) + "...)")
+catch (err)
+  print("✗ Failed to connect: " + err)
+  exit()
+end
+
+tests_passed = 0
+tests_failed = 0
+pings_received = 0
+
+function test_echo(input_msg)
+  ws.write(input_msg)
+  response = ws.read(timeout = 5)
+
+  expected = "ECHO: " + input_msg
+
+  if response == expected then
+    print("✓ PASS: '" + input_msg + "' → '" + response + "'")
+    tests_passed = tests_passed + 1
+  else
+    print("✗ FAIL: Expected '" + expected + "' but got '" + response + "'")
+    tests_failed = tests_failed + 1
+  end
+end
+
+print("")
+print("Running echo tests...")
+print("")
+
+test_echo("hello")
+test_echo("world")
+test_echo("123")
+test_echo("special chars: !@#$%")
+test_echo("")
+
+print("")
+print("Listening for pings for 20 seconds...")
+print("")
+
+// Listen for pings for at least 20 seconds
+start_time = now()
+end_time = start_time + 20
+
+while now() < end_time do
+  msg = ws.read(timeout = 2)
+  if msg then
+    if msg == "PING" then
+      pings_received = pings_received + 1
+      elapsed = now() - start_time
+      print("  [" + format_time(now(), "HH:mm:ss") + "] Received ping #" + pings_received + " (elapsed: " + round(elapsed) + "s)")
+    else
+      print("  Unexpected message: " + msg)
+    end
+  end
+end
+
+print("")
+print("=== Results ===")
+print("Echo tests passed: " + tests_passed)
+print("Echo tests failed: " + tests_failed)
+print("Pings received: " + pings_received)
+
+ws.close()
+
+if tests_failed > 0 or pings_received < 3 then
+  print("✗ Test failed")
+  exit(1)
+end
+
+print("")
+print("✓ All tests passed!")

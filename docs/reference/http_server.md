@@ -21,6 +21,7 @@ Create an HTTP server that listens for incoming requests and runs handler script
   - `idle_timeout` (number) - Idle connection timeout in seconds (default: 120)
   - `access_log` (boolean) - Enable access logging to stderr in Apache Combined Log Format (default: true)
   - `directory` (boolean) - Enable directory listing when no default file is found (default: false)
+  - `max_websocket_connections` (number) - Max concurrent WebSocket connections (default: 0 = unlimited). Returns 503 if exceeded.
   - `default` (string or array) - Default file(s) to serve in directories (default: ["index.html"]). Can be a single filename, comma-separated list, or array of filenames. Set to nil or empty to disable defaults.
   - `cache_control` (string) - Cache-Control header for dynamic responses. Used by response helpers (html(), json(), text()) unless handler sets custom headers (default: "no-cache, no-store, must-revalidate").
   - `static_cache_control` (string) - Cache-Control header for static file responses (default: "public, max-age=3600"). Set to empty string to disable.
@@ -41,6 +42,7 @@ Create an HTTP server that listens for incoming requests and runs handler script
     - `enabled` (boolean) - Enable file uploads via multipart/form-data (default: false)
     - `max_size` (number) - Max file size in KB per uploaded file (default: 10240 = 10MB)
     - `timeout` (number) - Upload timeout in seconds (reserved for future use)
+  - `websocket` (object) - WebSocket configuration (optional). See [websocket()](/docs/reference/websocket.md) for all options including `idle_timeout`, `max_message_size`, `max_messages_per_second`, and queue sizes.
 
 ## Returns
 
@@ -821,11 +823,82 @@ The `ctx.connection()` object provides WebSocket methods:
 
 - `accept()` - Accept the WebSocket connection (complete the upgrade)
 - `read([timeout])` - Block until a message is received. Returns `nil` on disconnect or timeout.
-  - `timeout` (optional, number) - Wait timeout in seconds. If omitted, blocks indefinitely.
+  - `timeout` (optional, number) - Wait timeout in seconds. If omitted, uses `default_read_timeout` from config.
   - Supports both positional: `read(5)` and named: `read(timeout=5)` arguments.
-- `write(message)` - Send a message to the connected client
+- `write(message)` - Queue a message to the connected client. Returns bytes queued (number) or `nil` if queue is full.
 - `close()` - Explicitly close the WebSocket connection
 - `is_connected()` - Check if connection is still open (returns boolean)
+- `id` - Unique connection ID (string). Use with `send_websocket()` for broadcasting.
+
+### Message Queuing
+
+Incoming and outgoing messages are queued in buffers to handle backpressure:
+
+- **Read queue**: Incoming messages from the client are buffered. Default: 100 messages.
+- **Write queue**: Outgoing messages to the client are buffered. Default: 100 messages.
+
+If `write()` returns `nil`, the write queue is full—the client is receiving slower than you're sending. Handle gracefully:
+
+```duso
+bytes = conn.write(msg)
+if bytes == nil then
+  // Queue overflow - client too slow
+  print("Failed to send to client")
+  conn.close()
+end
+```
+
+Configure WebSocket per server (all options optional, defaults provided):
+
+```duso
+server = http_server({
+  port = 8080,
+  max_websocket_connections = 1000,  // Server-level limit
+  websocket = {
+    read_queue_size = 100,
+    write_queue_size = 100,
+    read_timeout = 30,
+    idle_timeout = 300,                // Disconnect after 5 min idle (0 = disabled)
+    max_message_size = 65536,          // 64KB (0 = unlimited)
+    max_messages_per_second = 0        // Disabled by default
+  }
+})
+```
+
+### Broadcasting with send_websocket()
+
+Send messages to any connection by ID without direct access to the connection object:
+
+```duso
+// Inside handler or anywhere else
+bytes = send_websocket(conn.id, "broadcast message")
+if bytes == nil then
+  print("Failed to queue broadcast")
+end
+```
+
+Use with `datastore()` to coordinate across handlers:
+
+```duso
+// handlers/chat.du
+ctx = context()
+conn = ctx.connection()
+conn.accept()
+
+store = datastore("chat_room")
+store.push("connections", conn.id)  // Register this connection
+
+while true do
+  msg = conn.read()
+  if msg == nil then break end
+  
+  // Broadcast to all connections
+  all_conns = store.get("connections")
+  for cid in all_conns do
+    send_websocket(cid, "Message: " + msg)
+  end
+end
+```
 
 ### Request Context
 
@@ -891,8 +964,10 @@ Each WebSocket connection:
 - No automatic timeout (uses socket-level `idle_timeout` if configured)
 - Handler script runs in its own goroutine (no blocking issues with other requests)
 - Request context (headers, JWT, params) is from the initial upgrade request
-- For coordination between multiple WebSocket connections, use `datastore()` or `spawn()`
+- Each connection has a unique ID (`conn.id`) that can be used with `send_websocket()` for broadcasting
+- For coordination between multiple WebSocket connections, use `datastore()` to store connection IDs
 - WebSocket upgrade requests cannot be matched with `"*"` (all methods) - must explicitly register as `"WS"`
+- Messages are queued (not dropped) to handle slow clients, but queues have limits to prevent memory exhaustion
 
 ## File Uploads
 

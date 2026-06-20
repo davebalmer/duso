@@ -130,8 +130,8 @@ func printLogo() {
 		return
 	}
 
-	// ANSI code for bright white foreground on blue background
-	styled := "\033[97;44m"
+	// ANSI code for bright white foreground on dark blue background
+	styled := "\033[97;48;5;18m"
 	bold := "\033[1;97m"
 	gray := "\033[90m"
 	reset := "\033[0m"

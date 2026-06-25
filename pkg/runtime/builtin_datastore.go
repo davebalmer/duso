@@ -3,8 +3,6 @@ package runtime
 import (
 	"fmt"
 	"time"
-
-	"github.com/duso-org/duso/pkg/core"
 )
 
 // NewDatastoreFunction creates the datastore(namespace, config) builtin.
@@ -91,17 +89,16 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			}
 		}
 
-		// Resolve relative paths to current working directory
-		// (Relative paths use CWD, not script dir, to avoid read-only issues with bundled binaries)
-		if config != nil {
+		// Resolve paths using CLI's path resolution (handles /EMBED/, /STORE/, /HERE/, /CWD/)
+		if config != nil && ResolvePath != nil {
 			// Resolve persist path
-			if persistPath, ok := config["persist"].(string); ok && persistPath != "" && !core.IsAbsolute(persistPath) {
-				config["persist"] = core.Join(".", persistPath)
+			if persistPath, ok := config["persist"].(string); ok && persistPath != "" {
+				config["persist"] = ResolvePath(persistPath)
 			}
 
 			// Resolve wal path
-			if walPath, ok := config["wal"].(string); ok && walPath != "" && !core.IsAbsolute(walPath) {
-				config["wal"] = core.Join(".", walPath)
+			if walPath, ok := config["wal"].(string); ok && walPath != "" {
+				config["wal"] = ResolvePath(walPath)
 			}
 		}
 

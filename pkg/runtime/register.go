@@ -10,6 +10,11 @@ import "github.com/duso-org/duso/pkg/script"
 // Builtins read capabilities (ScriptLoader, FileReader, etc.) from this shared template.
 var globalInterpreter *script.Interpreter
 
+// ResolvePath is set by the host (CLI) to resolve special path prefixes.
+// Handles /EMBED/, /STORE/, /HERE/, /CWD/, bare paths, and absolute paths.
+// Set by cli.RegisterFunctions() during initialization.
+var ResolvePath func(string) string
+
 // SetInterpreter sets the global interpreter instance for use by builtins
 func SetInterpreter(interp *script.Interpreter) {
 	globalInterpreter = interp

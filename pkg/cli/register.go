@@ -75,6 +75,9 @@ func RegisterFunctions(interp *script.Interpreter, opts RegisterOptions, stdinSe
 	// Store the global interpreter reference for builtins to access
 	globalInterpreter = interp
 
+	// Set up path resolver for runtime builtins (datastore, etc.)
+	runtime.ResolvePath = ResolvePath
+
 	// Create module resolver for path resolution (both require and include)
 	resolver := NewModuleResolver(opts)
 

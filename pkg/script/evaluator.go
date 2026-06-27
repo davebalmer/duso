@@ -396,6 +396,7 @@ func (e *Evaluator) evalWhileStatement(stmt *WhileStatement) (Value, error) {
 			if _, ok := err.(*ContinueIteration); ok {
 				continue
 			}
+			// Let errors propagate up
 			return NewNil(), err
 		}
 		result = val
@@ -1232,6 +1233,34 @@ func (e *Evaluator) callScriptFunction(fn *ScriptFunction, args []Node, namedArg
 			break
 		}
 		if err != nil {
+			// In debug mode, all errors trigger REPL
+			debugMode := false
+			if sysBuiltin := GetBuiltin("sys"); sysBuiltin != nil {
+				result, _ := sysBuiltin(e, map[string]any{"0": "-debug"})
+				if b, ok := result.(bool); ok {
+					debugMode = b
+				}
+			}
+			if debugMode {
+				debugEvent := &DebugEvent{
+					Error:   err,
+					Message: err.Error(),
+					Env:     e.env,
+				}
+				if bpErr, ok := err.(*BreakpointError); ok {
+					debugEvent.FilePath = bpErr.FilePath
+					debugEvent.Position = bpErr.Position
+					debugEvent.CallStack = bpErr.CallStack
+				}
+				if dusoErr, ok := err.(*DusoError); ok {
+					debugEvent.FilePath = dusoErr.FilePath
+					debugEvent.Position = dusoErr.Position
+					debugEvent.CallStack = dusoErr.CallStack
+				}
+				debugManager := GetDebugManager()
+				debugManager.Wait(debugEvent, nil)
+				continue
+			}
 			e.env = prevEnv
 			return NewNil(), err
 		}

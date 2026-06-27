@@ -46,7 +46,10 @@ func (dm *DebugManager) startProcessor() {
 
 			// Call the debug handler which opens REPL
 			// When -stdin-port is used, the REPL's stdin/stdout goes through HTTP automatically
-			handler := item.interpreter.GetDebugHandler()
+			var handler DebugHandler
+			if item.interpreter != nil {
+				handler = item.interpreter.GetDebugHandler()
+			}
 			if handler != nil {
 				handler(item.event)
 			}

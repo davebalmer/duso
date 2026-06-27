@@ -24,7 +24,7 @@ WebSocket connection object with methods and properties
 
 The returned object has the following methods and properties:
 
-- `id` (string) - Unique identifier for this connection (UUID v4)
+- `id` (string) - Unique identifier for this connection (UUID v4). Can be used with `send_websocket()` to send messages from other scripts.
 - `read([timeout])` - Block until a message is received
   - `timeout` (optional, number) - Wait timeout in seconds. If omitted, blocks indefinitely.
   - Returns the message string, or `nil` on disconnect or timeout.
@@ -218,7 +218,7 @@ Messages are always text (UTF-8 strings). Binary frames are not supported in thi
 
 ## See Also
 
-- [send_websocket() - Send to specific connection](/docs/reference/send_websocket.md) - Send messages to connections by ID (used for broadcasting)
+- [send_websocket() - Send to specific connection](/docs/reference/send_websocket.md) - Send messages to any WebSocket connection (client or server) by ID
 - [http_server() - WebSocket server](/docs/reference/http_server.md) - Create WebSocket servers
 - [fetch() - HTTP client requests](/docs/reference/fetch.md) - Make regular HTTP requests
 - [spawn() - Run scripts concurrently](/docs/reference/spawn.md) - Run message handlers in parallel

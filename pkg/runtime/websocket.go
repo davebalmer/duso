@@ -143,6 +143,9 @@ func NewWebSocketClientConnectionWithConfig(urlStr string, headers map[string]st
 		lastActivityTime: time.Now(),
 	}
 
+	// Register in global registry
+	RegisterConnection(conn)
+
 	// Start background reader goroutine
 	go conn.backgroundReader()
 

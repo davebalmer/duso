@@ -159,10 +159,13 @@ end
 
 ## Connection Lifecycle
 
-- Connection is registered in the global registry when created (via `websocket()` or server handler)
+- **Both client and server connections are registered** in the global registry when created:
+  - Client connections via `websocket()` (client-side)
+  - Server connections via `http_server()` WebSocket handlers (server-side)
 - Connection ID is available as `conn.id` (server-side) or `ws.id` (client-side)
 - Connection is automatically unregistered when closed
 - After unregistration, `send_websocket()` silently returns `nil` (connection not found)
+- `send_websocket()` works with both client and server connections by ID
 
 ## Errors
 

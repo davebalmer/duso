@@ -16,6 +16,7 @@ import (
 var (
 	wsConnRegistry = make(map[string]*WebSocketConnection)
 	wsConnMutex    sync.RWMutex
+	interruptChan  = make(chan struct{})
 )
 
 // WebSocketConfig holds configuration for WebSocket connections
@@ -189,6 +190,8 @@ func (wsc *WebSocketConnection) Read(timeout *time.Duration) (string, error) {
 		return "", nil // Timeout: return empty string (caller should check with explicit timeout check)
 	case <-wsc.readDone:
 		return "", fmt.Errorf("connection closed") // Connection closed: error indicates disconnect
+	case <-interruptChan:
+		return "", fmt.Errorf("interrupted") // Process interrupted (Ctrl+C)
 	}
 }
 
@@ -322,6 +325,35 @@ func GetConnection(connID string) *WebSocketConnection {
 	wsConnMutex.RLock()
 	defer wsConnMutex.RUnlock()
 	return wsConnRegistry[connID]
+}
+
+// SignalInterrupt closes the interrupt channel to wake up all blocked read operations
+// This is called when Ctrl+C or similar signals are received
+func SignalInterrupt() {
+	select {
+	case <-interruptChan:
+		// Already closed, do nothing
+	default:
+		close(interruptChan)
+	}
+}
+
+// CloseAllConnections closes all active WebSocket connections
+// Used during server shutdown to ensure Ctrl+C interrupts waiting connections
+func CloseAllConnections() {
+	wsConnMutex.Lock()
+	conns := make([]*WebSocketConnection, 0, len(wsConnRegistry))
+	for _, conn := range wsConnRegistry {
+		conns = append(conns, conn)
+	}
+	wsConnMutex.Unlock()
+
+	for _, conn := range conns {
+		// Force unblock any blocked Receive() calls by setting a 1-second read deadline
+		// This allows backgroundReader goroutines to exit immediately during shutdown
+		conn.ws.SetReadDeadline(time.Now().Add(1 * time.Second))
+		conn.Close()
+	}
 }
 
 // generateUUIDv4 generates a UUID v4 (random) string

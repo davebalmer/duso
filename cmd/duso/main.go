@@ -10,10 +10,12 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/signal"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/duso-org/duso/pkg/cli"
 	"github.com/duso-org/duso/pkg/core"
@@ -1636,6 +1638,15 @@ func main() {
 		interp.OutputWriter = stdinServer.GetOutputWriter()
 		interp.InputReader = stdinServer.GetInputReader()
 	}
+
+	// Set up signal handling for Ctrl+C to interrupt websocket reads
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT)
+	go func() {
+		<-sigChan
+		dusoruntime.SignalInterrupt()
+		os.Exit(1)
+	}()
 
 	// Execute the script
 	if *debug {

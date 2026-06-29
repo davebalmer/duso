@@ -1145,6 +1145,12 @@ func (s *HTTPServerValue) StartWithContext(procCtx context.Context) error {
 		}
 	}
 
+	// Signal interrupt to wake up all blocked read operations
+	SignalInterrupt()
+
+	// Close all active WebSocket connections
+	CloseAllConnections()
+
 	// Gracefully shutdown the server
 	// Use a timeout context so shutdown doesn't hang forever
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

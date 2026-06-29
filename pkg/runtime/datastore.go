@@ -81,6 +81,80 @@ type DatastoreValue struct {
 	walStopSync        chan bool              // Signal to stop WAL sync ticker
 }
 
+// applyDatastoreConfig applies configuration to a datastore and triggers recovery.
+// IMPORTANT: Paths in config must be pre-resolved (caller is responsible).
+func applyDatastoreConfig(store *DatastoreValue, config map[string]any) {
+	if config == nil {
+		return
+	}
+
+	// Apply config options - paths must already be resolved by caller
+	if persistPath, ok := config["persist"].(string); ok {
+		store.persistPath = persistPath
+	}
+	if persistInterval, ok := config["persist_interval"]; ok {
+		if intervalSecs, ok := persistInterval.(float64); ok {
+			store.persistInterval = time.Duration(intervalSecs) * time.Second
+		}
+	}
+	if walPath, ok := config["wal"].(string); ok {
+		store.walPath = walPath
+	}
+	if walSyncInterval, ok := config["wal_sync_interval"]; ok {
+		if intervalSecs, ok := walSyncInterval.(float64); ok {
+			store.walSyncInterval = time.Duration(intervalSecs) * time.Second
+		}
+	}
+	if readonly, ok := config["readonly"]; ok {
+		if r, ok := readonly.(bool); ok {
+			store.readonly = r
+		}
+	}
+	if returnDeletedValue, ok := config["return_deleted_value"]; ok {
+		if r, ok := returnDeletedValue.(bool); ok {
+			store.returnDeletedValue = r
+		}
+	}
+
+	// DEBUG: config applied, persistPath=%q walPath=%q\n", store.persistPath, store.walPath)
+
+	// Step 1: Load persist if it exists
+	if store.persistPath != "" {
+		// DEBUG: loading from persist: %q\n", store.persistPath)
+		_ = store.loadFromDisk()
+	}
+
+	// Step 2: Replay WAL if it exists
+	if store.walPath != "" {
+		// DEBUG: recovering from WAL: %q\n", store.walPath)
+		if err := store.recoverFromWAL(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to recover from WAL for %q: %v\n", store.namespace, err)
+		}
+	}
+
+	// Step 3: Open WAL for new writes if configured
+	if store.walPath != "" && store.walFile == nil {
+		if err := store.openWALForWrites(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to open WAL for writes for %q: %v\n", store.namespace, err)
+		}
+	}
+
+	// Start auto-save ticker if configured
+	if store.persistInterval > 0 && store.ticker == nil {
+		store.ticker = time.NewTicker(store.persistInterval)
+		go func() {
+			for {
+				select {
+				case <-store.ticker.C:
+					_ = store.saveToDisk()
+				case <-store.stopTicker:
+					return
+				}
+			}
+		}()
+	}
+}
+
 // GetDatastore returns or creates a namespaced datastore with optional persistence config
 func GetDatastore(namespace string, config map[string]any) *DatastoreValue {
 	registryMutex.Lock()
@@ -116,69 +190,7 @@ func GetDatastore(namespace string, config map[string]any) *DatastoreValue {
 	//	store.statsFn = GetMetric
 	// }
 
-	// Parse persistence config
-	if config != nil {
-		if persistPath, ok := config["persist"]; ok {
-			store.persistPath = fmt.Sprintf("%v", persistPath)
-		}
-		if persistInterval, ok := config["persist_interval"]; ok {
-			if intervalSecs, ok := persistInterval.(float64); ok {
-				store.persistInterval = time.Duration(intervalSecs) * time.Second
-			}
-		}
-		if walPath, ok := config["wal"]; ok {
-			store.walPath = fmt.Sprintf("%v", walPath)
-		}
-		if walSyncInterval, ok := config["wal_sync_interval"]; ok {
-			if intervalSecs, ok := walSyncInterval.(float64); ok {
-				store.walSyncInterval = time.Duration(intervalSecs) * time.Second
-			}
-		}
-		if readonly, ok := config["readonly"]; ok {
-			if r, ok := readonly.(bool); ok {
-				store.readonly = r
-			}
-		}
-		if returnDeletedValue, ok := config["return_deleted_value"]; ok {
-			if r, ok := returnDeletedValue.(bool); ok {
-				store.returnDeletedValue = r
-			}
-		}
-	}
-
-	// Step 1: Load persist if it exists
-	if store.persistPath != "" {
-		_ = store.loadFromDisk() // Ignore error if file doesn't exist yet
-	}
-
-	// Step 2: Replay WAL if it exists, then save merged state and truncate
-	if store.walPath != "" {
-		if err := store.recoverFromWAL(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to recover from WAL for %q: %v\n", store.namespace, err)
-		}
-	}
-
-	// Step 3: Open WAL for new writes if configured (only if recovery didn't already do it)
-	if store.walPath != "" && store.walFile == nil {
-		if err := store.openWALForWrites(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to open WAL for writes for %q: %v\n", store.namespace, err)
-		}
-	}
-
-	// Start auto-save ticker if configured
-	if store.persistInterval > 0 {
-		store.ticker = time.NewTicker(store.persistInterval)
-		go func() {
-			for {
-				select {
-				case <-store.ticker.C:
-					_ = store.saveToDisk()
-				case <-store.stopTicker:
-					return
-				}
-			}
-		}()
-	}
+	// DEBUG: GetDatastore creating bare store, no config applied\n")
 
 	// Start expiry sweep ticker (1-second sweep)
 	store.expiryTicker = time.NewTicker(1 * time.Second)

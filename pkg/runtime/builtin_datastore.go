@@ -76,21 +76,25 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 
 		// Get config from second positional or named argument (optional)
 		var config map[string]any
+		var hasConfig bool
 
 		if cfg, ok := args["1"]; ok {
 			// Positional argument
 			if cfgMap, ok := cfg.(map[string]any); ok {
 				config = cfgMap
+				hasConfig = true
 			}
 		} else if cfg, ok := args["config"]; ok {
 			// Named argument
 			if cfgMap, ok := cfg.(map[string]any); ok {
 				config = cfgMap
+				hasConfig = true
 			}
 		}
 
-		// Resolve paths using CLI's path resolution (handles /EMBED/, /STORE/, /HERE/, /CWD/)
-		if config != nil && ResolvePath != nil {
+
+		// Resolve paths BEFORE getting datastore (so timer will use resolved paths)
+		if hasConfig && ResolvePath != nil {
 			// Resolve persist path
 			if persistPath, ok := config["persist"].(string); ok && persistPath != "" {
 				config["persist"] = ResolvePath(persistPath)
@@ -102,12 +106,18 @@ func builtinDatastore(evaluator *Evaluator, args map[string]any) (any, error) {
 			}
 		}
 
-		// Get or create the datastore
+		// Get or create the datastore (bare, no config applied)
 		store := GetDatastore(namespace, config)
 
-		// Read-only datastores reject any config
-		if store.readonly && len(config) > 0 {
-			return nil, fmt.Errorf("datastore(\"%s\") is read-only and does not accept configuration options", store.namespace)
+		// If config was explicitly provided, apply it to the store
+		if hasConfig {
+			// Read-only datastores reject any config
+			if store.readonly && len(config) > 0 {
+				return nil, fmt.Errorf("datastore(\"%s\") is read-only and does not accept configuration options", store.namespace)
+			}
+
+			// Apply config and do recovery (paths already resolved)
+			applyDatastoreConfig(store, config)
 		}
 
 		// Create set(key, value) method

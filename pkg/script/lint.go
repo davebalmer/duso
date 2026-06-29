@@ -172,8 +172,12 @@ func (a *LintAnalyzer) walkNode(node Node) {
 			a.walkNode(elem)
 		}
 	case *ObjectLiteral:
-		for _, val := range n.Pairs {
+		for _, val := range n.StaticPairs {
 			a.walkNode(val)
+		}
+		for _, pair := range n.ComputedPairs {
+			a.walkNode(pair.KeyExpr)
+			a.walkNode(pair.ValueExpr)
 		}
 	case *TemplateLiteral:
 		for _, part := range n.Parts {

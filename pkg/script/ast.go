@@ -232,10 +232,17 @@ type ArrayLiteral struct {
 func (l *ArrayLiteral) node() {}
 
 type ObjectLiteral struct {
-	Pairs map[string]Node
+	StaticPairs   map[string]Node
+	ComputedPairs []*ComputedKeyPair
 }
 
-func (l *ObjectLiteral) node() {}
+type ComputedKeyPair struct {
+	KeyExpr   Node
+	ValueExpr Node
+}
+
+func (l *ObjectLiteral) node()    {}
+func (c *ComputedKeyPair) node() {}
 
 type TemplateLiteral struct {
 	Pos   Position

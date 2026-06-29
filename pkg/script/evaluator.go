@@ -1581,13 +1581,29 @@ func (e *Evaluator) evalArrayLiteral(lit *ArrayLiteral) (Value, error) {
 
 func (e *Evaluator) evalObjectLiteral(lit *ObjectLiteral) (Value, error) {
 	obj := make(map[string]Value)
-	for key, valueNode := range lit.Pairs {
+
+	// Evaluate static (literal) keys
+	for key, valueNode := range lit.StaticPairs {
 		val, err := e.Eval(valueNode)
 		if err != nil {
 			return NewNil(), err
 		}
 		obj[key] = val
 	}
+
+	// Evaluate computed keys
+	for _, pair := range lit.ComputedPairs {
+		keyVal, err := e.Eval(pair.KeyExpr)
+		if err != nil {
+			return NewNil(), err
+		}
+		val, err := e.Eval(pair.ValueExpr)
+		if err != nil {
+			return NewNil(), err
+		}
+		obj[keyVal.String()] = val
+	}
+
 	return NewObject(obj), nil
 }
 

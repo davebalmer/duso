@@ -1059,24 +1059,43 @@ func (p *Parser) parsePrimary() (Node, error) {
 		return &ArrayLiteral{Elements: elements}, nil
 
 	case TOK_LBRACE:
-		// Object literal - supports both identifier and string keys
+		// Object literal - supports literal keys (identifier/string) and computed keys [expr]
 		openLine := p.current().Line
 		openCol := p.current().Column
 		p.advance()
 		p.pushBracket(TOK_LBRACE, openLine, openCol)
-		pairs := make(map[string]Node)
+		staticPairs := make(map[string]Node)
+		var computedPairs []*ComputedKeyPair
+
 		for p.current().Type != TOK_RBRACE && p.current().Type != TOK_EOF {
-			// Accept either identifier or string as key
-			var key string
-			if p.current().Type == TOK_IDENT {
-				key = p.current().Value
+			// Check for computed key [expr] or literal key
+			var keyExpr Node
+			var staticKey string
+			isComputed := false
+
+			if p.current().Type == TOK_LBRACKET {
+				// Computed key: [expr]
+				isComputed = true
+				p.advance()
+				var err error
+				keyExpr, err = p.parseExpression()
+				if err != nil {
+					return nil, err
+				}
+				if err := p.expect(TOK_RBRACKET); err != nil {
+					return nil, err
+				}
+			} else if p.current().Type == TOK_IDENT {
+				// Literal identifier key
+				staticKey = p.current().Value
 				p.advance()
 			} else if p.current().Type == TOK_STRING {
-				key = p.current().Value
+				// Literal string key
+				staticKey = p.current().Value
 				p.advance()
 			} else {
 				errPos := Position{Line: p.current().Line, Column: p.current().Column}
-				return nil, p.parseError("expected identifier or string as object key", errPos)
+				return nil, p.parseError("expected identifier, string, or [expr] as object key", errPos)
 			}
 
 			// Use '=' for consistency with named arguments and assignments
@@ -1089,7 +1108,14 @@ func (p *Parser) parsePrimary() (Node, error) {
 				return nil, err
 			}
 
-			pairs[key] = value
+			if isComputed {
+				computedPairs = append(computedPairs, &ComputedKeyPair{
+					KeyExpr:   keyExpr,
+					ValueExpr: value,
+				})
+			} else {
+				staticPairs[staticKey] = value
+			}
 
 			if p.current().Type == TOK_COMMA {
 				p.advance()
@@ -1101,7 +1127,10 @@ func (p *Parser) parsePrimary() (Node, error) {
 		if err := p.expectClosing(TOK_LBRACE, TOK_RBRACE); err != nil {
 			return nil, err
 		}
-		return &ObjectLiteral{Pairs: pairs}, nil
+		return &ObjectLiteral{
+			StaticPairs:   staticPairs,
+			ComputedPairs: computedPairs,
+		}, nil
 
 	default:
 		pos := Position{Line: p.current().Line, Column: p.current().Column}

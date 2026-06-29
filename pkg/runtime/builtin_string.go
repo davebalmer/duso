@@ -129,9 +129,21 @@ func builtinRepeat(evaluator *Evaluator, args map[string]any) (any, error) {
 
 // builtinPadLeft pads a string on the left: pad_left(str, width [, char])
 func builtinPadLeft(evaluator *Evaluator, args map[string]any) (any, error) {
-	s, ok := GetArg(args, 0, "str").(string)
-	if !ok {
-		return nil, fmt.Errorf("pad_left() requires a string as first argument")
+	arg := GetArg(args, 0, "str")
+	var s string
+	if strVal, ok := arg.(string); ok {
+		s = strVal
+	} else {
+		// Coerce to string using tostring logic
+		if num, ok := arg.(float64); ok {
+			if IsInteger(num) {
+				s = fmt.Sprintf("%d", int64(num))
+			} else {
+				s = fmt.Sprintf("%v", num)
+			}
+		} else {
+			s = fmt.Sprintf("%v", arg)
+		}
 	}
 
 	widthVal := GetArg(args, 1, "width")
@@ -142,12 +154,24 @@ func builtinPadLeft(evaluator *Evaluator, args map[string]any) (any, error) {
 
 	padChar := " "
 	if charVal := GetArg(args, 2, "char"); charVal != nil {
-		if char, ok := charVal.(string); ok {
-			if utf8.RuneCountInString(char) != 1 {
-				return nil, fmt.Errorf("pad_left() pad character must be a single character")
+		var char string
+		if strVal, ok := charVal.(string); ok {
+			char = strVal
+		} else {
+			if num, ok := charVal.(float64); ok {
+				if IsInteger(num) {
+					char = fmt.Sprintf("%d", int64(num))
+				} else {
+					char = fmt.Sprintf("%v", num)
+				}
+			} else {
+				char = fmt.Sprintf("%v", charVal)
 			}
-			padChar = char
 		}
+		if utf8.RuneCountInString(char) != 1 {
+			return nil, fmt.Errorf("pad_left() pad character must be a single character")
+		}
+		padChar = char
 	}
 
 	w := int(width)
@@ -162,9 +186,21 @@ func builtinPadLeft(evaluator *Evaluator, args map[string]any) (any, error) {
 
 // builtinPadRight pads a string on the right: pad_right(str, width [, char])
 func builtinPadRight(evaluator *Evaluator, args map[string]any) (any, error) {
-	s, ok := GetArg(args, 0, "str").(string)
-	if !ok {
-		return nil, fmt.Errorf("pad_right() requires a string as first argument")
+	arg := GetArg(args, 0, "str")
+	var s string
+	if strVal, ok := arg.(string); ok {
+		s = strVal
+	} else {
+		// Coerce to string using tostring logic
+		if num, ok := arg.(float64); ok {
+			if IsInteger(num) {
+				s = fmt.Sprintf("%d", int64(num))
+			} else {
+				s = fmt.Sprintf("%v", num)
+			}
+		} else {
+			s = fmt.Sprintf("%v", arg)
+		}
 	}
 
 	widthVal := GetArg(args, 1, "width")
@@ -175,12 +211,24 @@ func builtinPadRight(evaluator *Evaluator, args map[string]any) (any, error) {
 
 	padChar := " "
 	if charVal := GetArg(args, 2, "char"); charVal != nil {
-		if char, ok := charVal.(string); ok {
-			if utf8.RuneCountInString(char) != 1 {
-				return nil, fmt.Errorf("pad_right() pad character must be a single character")
+		var char string
+		if strVal, ok := charVal.(string); ok {
+			char = strVal
+		} else {
+			if num, ok := charVal.(float64); ok {
+				if IsInteger(num) {
+					char = fmt.Sprintf("%d", int64(num))
+				} else {
+					char = fmt.Sprintf("%v", num)
+				}
+			} else {
+				char = fmt.Sprintf("%v", charVal)
 			}
-			padChar = char
 		}
+		if utf8.RuneCountInString(char) != 1 {
+			return nil, fmt.Errorf("pad_right() pad character must be a single character")
+		}
+		padChar = char
 	}
 
 	w := int(width)

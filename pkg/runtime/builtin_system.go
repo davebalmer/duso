@@ -39,7 +39,14 @@ func builtinSleep(evaluator *Evaluator, args map[string]any) (any, error) {
 		}
 		seconds = num
 	}
-	time.Sleep(time.Duration(seconds * float64(time.Second)))
+	// Make sleep interruptible by listening for interrupt signal
+	select {
+	case <-time.After(time.Duration(seconds * float64(time.Second))):
+		// Sleep completed normally
+	case <-interruptChan:
+		// Interrupted (e.g., Ctrl+C or systemctl stop)
+		return nil, fmt.Errorf("interrupted")
+	}
 	return nil, nil
 }
 
